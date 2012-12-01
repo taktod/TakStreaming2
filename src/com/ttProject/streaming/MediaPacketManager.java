@@ -29,7 +29,11 @@ public abstract class MediaPacketManager implements IMediaPacketManager {
 			buffer.flip();
 		}
 		else {
-			buffer = data;
+			int length = data.remaining();
+			ByteBuffer newBuffer = ByteBuffer.allocate(length);
+			newBuffer.put(data);
+			buffer = newBuffer;
+			buffer.flip();
 		}
 		List<IMediaPacket> result = new ArrayList<IMediaPacket>();
 		while(buffer.remaining() > 0) {

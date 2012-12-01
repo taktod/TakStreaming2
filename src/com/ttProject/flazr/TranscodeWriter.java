@@ -1,9 +1,7 @@
 package com.ttProject.flazr;
 
-import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.List;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.slf4j.Logger;
@@ -16,11 +14,13 @@ import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpWriter;
 import com.ttProject.process.ConvertProcessHandler;
-import com.ttProject.segment.m3u8.M3u8Manager;
+import com.ttProject.streaming.IMediaPacket;
+import com.ttProject.streaming.flv.FlvMediaPacket;
+import com.ttProject.streaming.flv.FlvPacketManager;
 
 /**
  * 変換用のwriter動作
- * TODO 生データから、flvセグメントを生成する動作もつくっておきたいところ。
+ * TODO FMSはとりあえず大丈夫っぽいけど、他のサーバーだと中途からやりなおすと、こまったことになるかもしれない。
  * @author taktod
  */
 public class TranscodeWriter implements RtmpWriter {
@@ -44,28 +44,25 @@ public class TranscodeWriter implements RtmpWriter {
 
 	// 最終処理時刻(処理がなくなったと判定するのに必要)
 	private long lastAccessTime = -1;
+	private long lastWriteTime = -1;
 	// audioデータのqueue、整列させるのに利用
-	private final Queue<FlvAtom> audioAtomQueue = new LinkedList<FlvAtom>();
-	private FlvAtom lastAudioAtom = null;
+	private final AtomOrderManager orderManager = new AtomOrderManager();
 
 	// sequenceHeaderがあるコーデック用のデータ
-	private FlvAtom aacMediaSequenceHeader = null;
-	private FlvAtom avcMediaSequenceHeader = null;
+	private final MediaSequenceHeader mediaSequenceHeader = new MediaSequenceHeader();
 
 	// ファイル書き込み用(本当はいらない)
 	private FileChannel writeChannel = null;
+	
+	private final FlvPacketManager flvPacketManager;
+	private int increment = 0;
 
-	// コーデック情報定義
-	public static enum CodecType {
-		NONE,
-		JPEG,H263,SCREEN,ON2VP6,ON2VP6_ALPHA,SCREEN_V2,AVC,
-		ADPCM,MP3,PCM,NELLY_16,NELLY_8,NELLY,G711_A,G711_U,RESERVED,AAC,SPEEX,MP3_8,DEVICE_SPECIFIC
-	};
 	/**
 	 * コンストラクタ
 	 * @param name
 	 */
 	public TranscodeWriter(String name) {
+		flvPacketManager = new FlvPacketManager();
 		this.name = name;
 		// 監視スレッドをつくっておいて、２秒間データがこなかったらとまったと判定する。
 		Thread t = new Thread(new Runnable() {
@@ -79,9 +76,12 @@ public class TranscodeWriter implements RtmpWriter {
 								logger.info("アクセスが3秒強ないので、とまったと判定しました。");
 								stop();
 							}
+							if(lastWriteTime != -1 && System.currentTimeMillis() - lastWriteTime > 1500) {
+								stop();
+							}
 						}
 						// m3u8についてしらべて、映像がながれていなかったら、waitで更新しておく。
-						M3u8Manager.fillEmptySpace();
+//						M3u8Manager.fillEmptySpace();
 						Thread.sleep(1000);
 					}
 				}
@@ -109,8 +109,9 @@ public class TranscodeWriter implements RtmpWriter {
 		isPlaying = false;
 		videoCodec = null;
 		audioCodec = null;
-		lastAudioAtom = null;
-		audioAtomQueue.clear();
+		orderManager.reset();
+		lastAccessTime = -1;
+		lastWriteTime = -1;
 		
 		/** 以下のファイル書き込み処理は本来はいらない。socketで通信して、別のプロセスに渡せばよい */
 		try {
@@ -135,8 +136,17 @@ public class TranscodeWriter implements RtmpWriter {
 		// ファイルの書き込みチャンネルを開いてとりあえず、書き込みテストを実行します。
 		/** 以下のファイルオープン処理は本来必要ない。 */
 		try {
-			writeChannel = new FileOutputStream(name + "_" + System.currentTimeMillis() + ".flv").getChannel();
-			writeChannel.write(FlvAtom.flvHeader().toByteBuffer());
+			// 特に取得するものでもないと思うのでスルー
+			List<IMediaPacket> packets = flvPacketManager.getPackets(FlvAtom.flvHeader().toByteBuffer()); // headerパケットが拾えるかもしれんか・・・
+			for(IMediaPacket packet : packets) {
+				// 書き込みを実施
+				if(packet.isHeader()) {
+					packet.writeData(name + ".flh", false);
+				}
+				else {
+					throw new RuntimeException("ここでメディアデータがでてくるはずがないだろう。");
+				}
+			}
 		}
 		catch (Exception e) {
 			logger.error("ファイルのオープンに失敗", e);
@@ -145,41 +155,19 @@ public class TranscodeWriter implements RtmpWriter {
 		isPlaying = true;
 		startTime = header.getTime();
 		// このタイミングでprocessサーバーとかを作成する。
-		convertHandler = new ConvertProcessHandler(audioCodec != CodecType.NONE, videoCodec != CodecType.NONE, name);
-		convertHandler.getFlvDataQueue().putData(FlvAtom.flvHeader());
+//		convertHandler = new ConvertProcessHandler(audioCodec != CodecType.NONE, videoCodec != CodecType.NONE, name);
+//		convertHandler.getFlvDataQueue().putData(FlvAtom.flvHeader());
 		// mediaSequenceHeaderがあるコーデックの場合は情報を書き込む
-		if(audioCodec == CodecType.AAC && aacMediaSequenceHeader != null) {
-			aacMediaSequenceHeader.getHeader().setTime(0);
-			write(aacMediaSequenceHeader);
-		}
-		if(videoCodec == CodecType.AVC && avcMediaSequenceHeader != null) {
-			avcMediaSequenceHeader.getHeader().setTime(0);
-			write(avcMediaSequenceHeader);
+		for(FlvAtom sequenceHeader : mediaSequenceHeader.getData()) {
+			write(sequenceHeader);
 		}
 		if(videoCodec != CodecType.NONE) {
 			// 動画の場合は開始header以前にあるデータは必要ないので、音声queueからデータを削除します。
-			FlvAtom audioAtom = lastAudioAtom;
-			lastAudioAtom = null;
-			do {
-				if(audioAtom == null) {
-					audioAtom = audioAtomQueue.poll();
-				}
-				if(audioAtom == null) {
-					// queueにすでにデータがなければ、抜けます。
-					break; // ループをぬける。
-				}
-				if(audioAtom.getHeader().getTime() > header.getTime()) {
-					// audioAtomのデータが現状のvideoのデータより後のデータである場合
-					lastAudioAtom = audioAtom;
-					break;
-				}
-				// audioAtomのデータが現状のvideoのデータより前のデータである場合
-				audioAtom = null; // 破棄して次のループに進む。
-			} while(true);
+			orderManager.clearPrestartAtom(header.getTime());
 		}
 		else {
 			// 音声データのみの場合はaudioQueueは必要ないので破棄します。
-			audioAtomQueue.clear();
+			orderManager.reset();
 		}
 	}
 	/**
@@ -231,47 +219,6 @@ public class TranscodeWriter implements RtmpWriter {
 		}
 	}
 	/**
-	 * 音声のコーデックタイプを判定します。
-	 * @param tag
-	 * @return
-	 */
-	private CodecType getCodecType(AudioTag tag) {
-		switch(tag.getCodecType()) {
-		case ADPCM:           return CodecType.ADPCM;
-		case MP3:             return CodecType.MP3;
-		case PCM:             return CodecType.PCM;
-		case NELLY_16:        return CodecType.NELLY_16;
-		case NELLY_8:         return CodecType.NELLY_8;
-		case NELLY:           return CodecType.NELLY;
-		case G711_A:          return CodecType.G711_A;
-		case G711_U:          return CodecType.G711_U;
-		case RESERVED:        return CodecType.RESERVED;
-		case AAC:             return CodecType.AAC;
-		case SPEEX:           return CodecType.SPEEX;
-		case MP3_8:           return CodecType.MP3_8;
-		case DEVICE_SPECIFIC: return CodecType.DEVICE_SPECIFIC;
-		default:
-			return CodecType.NONE;
-		}
-	}
-	/**
-	 * 映像のコーデックタイプを判定します。
-	 * @param tag
-	 * @return
-	 */
-	private CodecType getCodecType(VideoTag tag) {
-		switch(tag.getCodecType()) {
-		case JPEG:         return CodecType.JPEG;
-		case H263:         return CodecType.H263;
-		case SCREEN:       return CodecType.SCREEN;
-		case ON2VP6:       return CodecType.ON2VP6;
-		case ON2VP6_ALPHA: return CodecType.ON2VP6_ALPHA;
-		case SCREEN_V2:    return CodecType.SCREEN_V2;
-		case AVC:          return CodecType.AVC;
-		default:           return CodecType.NONE;
-		}
-	}
-	/**
 	 * rtmpから取得するデータはtimestampが前後することがあるので、音声パケットがきたらcacheしておき、映像パケットとソートしておく。
 	 * 書き込み処理
 	 * @param flvAtom
@@ -283,6 +230,7 @@ public class TranscodeWriter implements RtmpWriter {
 			// 音声でも映像でもない、データ量0のパケットは捨てます
 			return;
 		}
+		logger.info("生timestamp:" + header.getTime());
 		// 最終アクセス時刻の記録(1秒強アクセスがなければストリームが停止したと判定させる。)
 		lastAccessTime = System.currentTimeMillis();
 		if(header.isAudio()) {
@@ -299,10 +247,24 @@ public class TranscodeWriter implements RtmpWriter {
 	private void write(final FlvAtom flvAtom) {
 		try {
 			// ここでの書き込みをやめて、queueに登録するようにする。
-			// writeを２度実行すると壊れる(バッファのポインタがうごく。)
 			ChannelBuffer buffer = flvAtom.write();
-			convertHandler.getFlvDataQueue().putData(buffer.duplicate());
-			writeChannel.write(buffer.toByteBuffer());
+			List<IMediaPacket> packets = flvPacketManager.getPackets(buffer.toByteBuffer());
+			/*
+			 * rtmpのストリームデータの場合は設定によっては、音声が抜けるときがあります。
+			 * この場合、音声データがこなくなると、そこでコンバートがとまるみたいです。
+			 * なので、その場合は、適当な時間間隔で音声データを挿入してやるといい感じになります。
+			 */
+			for(IMediaPacket packet : packets) {
+				if(packet.isHeader()) {
+					logger.info("header again");
+					packet.writeData(name + ".flh", false);
+				}
+				else {
+					logger.info("body data...");
+					increment ++;
+					((FlvMediaPacket)packet).writeData(name + "_" + increment + ".flm", increment, false);
+				}
+			}
 		}
 		catch (Exception e) {
 			logger.error("ファイル書き込みに失敗しました。", e);
@@ -320,17 +282,12 @@ public class TranscodeWriter implements RtmpWriter {
 		AudioTag tag = new AudioTag(dataBuffer.readByte());
 		// コーデックを確認コーデック状態がかわっていることを確認した場合は、やりなおしにする必要があるので、有無をいわさず処理やり直しにする。
 		if(audioCodec == null) {
-			audioCodec = getCodecType(tag);
+			audioCodec = CodecType.getCodecType(tag);
 		}
-		if(audioCodec != getCodecType(tag)) {
+		if(audioCodec != CodecType.getCodecType(tag)) {
 			stop();
 		}
-		if(tag.getCodecType() == AudioTag.CodecType.AAC) {
-			if(dataBuffer.readByte() == 0x00) {
-				aacMediaSequenceHeader = flvAtom; // 開始時に必ず送る必要があるので、保持しておく。
-				sequenceHeader = true;
-			}
-		}
+		sequenceHeader = mediaSequenceHeader.isAacMediaSequenceHeader(flvAtom, tag, dataBuffer.readByte());
 		if(!isPlaying) {
 			// 初メディアデータであるか確認。初だったらplayTimeに現在のタイムスタンプを保持しておく。
 			if(playTime == -1) {
@@ -352,6 +309,9 @@ public class TranscodeWriter implements RtmpWriter {
 				return;
 			}
 		}
+		else {
+			lastWriteTime = System.currentTimeMillis();
+		}
 		if(videoCodec == CodecType.NONE) {
 			// videoCodecが存在しないと判定された場合は、audioデータ単体で次のデータ化してよくなるため、そのまま追記するようにする。
 			header.setTime(header.getTime() - startTime);
@@ -359,7 +319,7 @@ public class TranscodeWriter implements RtmpWriter {
 		}
 		else {
 			// videoCodecが存在している場合、もしくは、判定前の場合はaudioAtomはソートしたら利用する可能性があるので、queueにいれて保存しておく。
-			audioAtomQueue.add(flvAtom);
+			orderManager.addAudioAtom(flvAtom);
 		}
 	}
 	/**
@@ -373,17 +333,12 @@ public class TranscodeWriter implements RtmpWriter {
 		// video
 		VideoTag tag = new VideoTag(dataBuffer.readByte());
 		if(videoCodec == null) {
-			videoCodec = getCodecType(tag);
+			videoCodec = CodecType.getCodecType(tag);
 		}
-		if(videoCodec != getCodecType(tag)) {
+		if(videoCodec != CodecType.getCodecType(tag)) {
 			stop();
 		}
-		if(tag.getCodecType() == VideoTag.CodecType.AVC) {
-			if(dataBuffer.readByte() == 0x00) {
-				avcMediaSequenceHeader = flvAtom;
-				sequenceHeader = true;
-			}
-		}
+		sequenceHeader = mediaSequenceHeader.isAvcMediaSequenceHeader(flvAtom, tag, dataBuffer.readByte());
 		if(!isPlaying) {
 			// 初メディアデータであるか確認。初だったらplayTimeに現在のタイムスタンプを保持しておく。(ここにいれる理由は、コーデック違いにより、前の処理の部分で書き換えが発生する可能性があるため。)
 			if(playTime == -1) {
@@ -412,27 +367,13 @@ public class TranscodeWriter implements RtmpWriter {
 			}
 		}
 		// 書き込む
-		FlvAtom audioAtom = lastAudioAtom;
-		lastAudioAtom = null;
-		do {
-			if(audioAtom == null) {
-				audioAtom = audioAtomQueue.poll();
-			}
-			if(audioAtom == null) {
-				break;
-			}
-			if(audioAtom.getHeader().getTime() > header.getTime()) {
-				lastAudioAtom = audioAtom;
-				break;
-			}
-			// 処理を続ける。
+		for(FlvAtom audioAtom : orderManager.getPassedData(header.getTime())) {
 			audioAtom.getHeader().setTime(audioAtom.getHeader().getTime() - startTime);
 			write(audioAtom);
-			// 書き込み実施
-			audioAtom = null;
-		} while(true);
+		}
 		// 動画データも書き込む
 		header.setTime(header.getTime() - startTime);
+		lastWriteTime = System.currentTimeMillis();
 		write(flvAtom);
 	}
 }

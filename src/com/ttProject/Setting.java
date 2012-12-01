@@ -1,7 +1,12 @@
 package com.ttProject;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * とりあえず、jsonファイルあたりでなんとかしておきたいところ。
@@ -23,6 +28,7 @@ import java.util.Map;
  * @author taktod
  */
 public class Setting {
+	private final Logger logger = LoggerFactory.getLogger(Setting.class);
 	private final static Setting instance = new Setting();
 	private final int duration;
 	private final String processCommand;
@@ -30,6 +36,14 @@ public class Setting {
 	private final String userHome;
 	private final Map<String, String> envExtra = new HashMap<String, String>();
 	private Setting() {
+		try {
+			InputStream is = Setting.class.getResourceAsStream("/setting.properties");
+			Properties prop = new Properties();
+			prop.load(is);
+		}
+		catch (Exception e) {
+			logger.error("setting.propertiesが読み込めませんでした。", e);
+		}
 		duration = 5; // 分割は2秒ごとにしておく。
 		userHome = System.getProperty("user.home");
 		// process用のコマンドとその出力のデータをいれておく。

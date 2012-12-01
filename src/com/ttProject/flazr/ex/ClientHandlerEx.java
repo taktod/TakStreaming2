@@ -53,6 +53,11 @@ public class ClientHandlerEx extends ClientHandler {
 					logger.info("サーバーより配信停止した旨をうけとった。");
 					transcodeWriter.onUnpublish();
 				}
+				else if("NetStream.Play.Stop".equals(code)
+				|| "NetStream.Play.StreamNotFound".equals(code)) {
+					logger.info("特定のコードを受け取ったが、サーバーの監視を続ける。{}", code);
+					return;
+				}
 			}
 		}
 		super.messageReceived(ctx, me);

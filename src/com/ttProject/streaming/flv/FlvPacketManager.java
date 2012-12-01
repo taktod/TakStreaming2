@@ -30,6 +30,10 @@ public class FlvPacketManager extends MediaPacketManager {
 	}
 	/** ヘッダパケット保持 */
 	private FlvHeaderPacket headerPacket = null;
+	private int CRC = 0x00000000;
+	public int getCRC() {
+		return CRC;
+	}
 	/**
 	 * 拡張子取得
 	 */

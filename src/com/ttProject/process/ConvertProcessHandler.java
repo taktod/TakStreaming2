@@ -18,6 +18,7 @@ import com.ttProject.process.ProcessHandler.Quality;
  * コンバート開始するときに、使います。
  * @author taktod
  */
+@SuppressWarnings("unused")
 public class ConvertProcessHandler {
 	private final Logger logger = LoggerFactory.getLogger(ConvertProcessHandler.class);
 	/** メディアの存在確認フラグ */
@@ -88,16 +89,15 @@ public class ConvertProcessHandler {
 			
 			// 必要な数プロセスをつくっておく。
 			// TODO この部分のデータは、設定依存にすべき。
-			ProcessHandler process = new ProcessHandler(portNumber, Quality.High, "mpegts", this);
+/*			ProcessHandler process = new ProcessHandler(portNumber, Quality.High, "mpegts", this);
 			processList.add(process);
 			keyList.add(process.getKey());
-/*			process = new ProcessHandler(portNumber, Quality.Middle, "mpegts", this);
+			process = new ProcessHandler(portNumber, Quality.Middle, "mpegts", this);
 			processList.add(process);
-			keyList.add(process.getKey());*/
+			keyList.add(process.getKey());
 			process = new ProcessHandler(portNumber, Quality.Low, "mpegts", this);
 			processList.add(process);
-			keyList.add(process.getKey());
-//			keyList.add("hoge");
+			keyList.add(process.getKey());*/
 
 			// プロセスを起動
 			for(ProcessHandler handler : processList) {

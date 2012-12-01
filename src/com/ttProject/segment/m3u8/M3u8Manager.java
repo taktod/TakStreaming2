@@ -31,7 +31,7 @@ public class M3u8Manager {
 //	private static final Map<String, Integer> numMap = new HashMap<String, Integer>();
 	private final String m3u8File;
 	private final Integer limit = 3; // limitの設定は固定3でいいはずだが、動作検証で全データ出力させてみたいときもあるので、注意が必要。
-	private long lastUpdate;
+//	private long lastUpdate;
 	public static M3u8Manager getInstance(String m3u8File) {
 		M3u8Manager instance = managerMap.get(m3u8File);
 		if(instance == null) {
@@ -69,7 +69,7 @@ public class M3u8Manager {
 				logger.error("m3u8ファイル書き込み中にエラー", e);
 			}
 		}
-		lastUpdate = System.currentTimeMillis();
+//		lastUpdate = System.currentTimeMillis();
 	}
 	/**
 	 * データの書き込み処理
@@ -136,7 +136,7 @@ public class M3u8Manager {
 				logger.error("m3u8ファイル書き込み中にエラー", e);
 			}
 		}
-		lastUpdate = System.currentTimeMillis();
+//		lastUpdate = System.currentTimeMillis();
 	}
 	public static void fillEmptySpace() {
 		// 最終更新から1.5秒以上たっているデータがある場合は、データを追記する。

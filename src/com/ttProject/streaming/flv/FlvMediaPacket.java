@@ -1,6 +1,9 @@
 package com.ttProject.streaming.flv;
 
+import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 
 import com.ttProject.Setting;
 
@@ -229,5 +232,22 @@ public class FlvMediaPacket extends FlvPacket {
 		headerPacket.analize(headerBuffer);
 		// MediaTagには書き込まない。
 		return null;
+	}
+	public void writeData(String targetFile, int number, boolean append) {
+		ByteBuffer buffer = getBuffer(0);
+		try {
+			WritableByteChannel channel = Channels.newChannel(new FileOutputStream(targetFile, append));
+			// 先頭にcrc値 index値をいれておく必要あり。
+			ByteBuffer header = ByteBuffer.allocate(8);
+			header.putInt(getManager().getCRC());
+			header.putInt(number);
+			header.flip();
+			channel.write(header);
+			// データ実体を書き込む
+			buffer.flip();
+			channel.write(buffer);
+		}
+		catch (Exception e) {
+		}
 	}
 }

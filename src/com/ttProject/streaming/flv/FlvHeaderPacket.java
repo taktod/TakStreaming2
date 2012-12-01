@@ -5,6 +5,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
+/**
+ * flvHeaderPacketは先頭にHashデータを保持させておく。(4バイト)
+ * http経由でアクセスする場合は、どのファイルにアクセスすればいいかわからないので、インデックス番号を応答するものも準備しておく。(そのインデックス番号以降のデータをうけとるみたいな感じ)
+ * @author taktod
+ */
 public class FlvHeaderPacket extends FlvPacket {
 	private ByteBuffer buffer;
 	private ByteBuffer flvHeader = null;
@@ -39,7 +44,9 @@ public class FlvHeaderPacket extends FlvPacket {
 			isSaved = false;
 			break;
 		case FlvPacketManager.FLV_TAG:
-			flvHeader = buffer;
+//			flvHeader = buffer;
+			flvHeader = ByteBuffer.allocate(buffer.remaining() + 4);
+			flvHeader.put(buffer);
 			break;
 		default:
 			return false;
@@ -50,6 +57,7 @@ public class FlvHeaderPacket extends FlvPacket {
 				(audioSequenceHeader == null ? 0 : audioSequenceHeader.limit())
 		);
 		data.put(flvHeader);
+		flvHeader.rewind();
 		if(videoSequenceHeader != null) {
 			data.put(videoSequenceHeader);
 			videoSequenceHeader.rewind();
@@ -65,6 +73,12 @@ public class FlvHeaderPacket extends FlvPacket {
 	public void writeData(String targetFile, boolean append) {
 		try {
 			WritableByteChannel channel = Channels.newChannel(new FileOutputStream(targetFile, append));
+			// 先頭にcrc値をいれておく必要あり。
+			ByteBuffer header = ByteBuffer.allocate(4);
+			header.putInt(getManager().getCRC());
+			header.flip();
+			channel.write(header);
+			// データ実体を書き込む
 			buffer.flip();
 			channel.write(buffer);
 		}
