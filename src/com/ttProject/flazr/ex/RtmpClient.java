@@ -51,7 +51,6 @@ public class RtmpClient {
 		final ChannelFuture future = bootstrap.connect(new InetSocketAddress(options.getHost(), options.getPort()));
 		future.awaitUninterruptibly();
 		if(!future.isSuccess()) {
-			// future.getCause().printStackTrace();
 			logger.error("error creating client connection: {}", future.getCause().getMessage());
 		}
 		future.getChannel().getCloseFuture().awaitUninterruptibly(); 

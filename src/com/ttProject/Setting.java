@@ -40,6 +40,7 @@ public class Setting {
 			InputStream is = Setting.class.getResourceAsStream("/setting.properties");
 			Properties prop = new Properties();
 			prop.load(is);
+			logger.info(prop.getProperty("data"));
 		}
 		catch (Exception e) {
 			logger.error("setting.propertiesが読み込めませんでした。", e);
