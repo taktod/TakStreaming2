@@ -30,6 +30,12 @@ public class MediaSequenceHeader {
 		}
 		return result;
 	}
+	public void resetAacMediaSequenceHeader() {
+		aacMediaSequenceHeader = null;
+	}
+	public void resetAvcMediaSequenceHeader() {
+		avcMediaSequenceHeader = null;
+	}
 	/**
 	 * aacのheaderであるか確認
 	 * @param flvAtom

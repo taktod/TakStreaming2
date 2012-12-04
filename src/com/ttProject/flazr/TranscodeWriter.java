@@ -81,6 +81,8 @@ public class TranscodeWriter implements RtmpWriter {
 							}
 							if(lastWriteTime != -1 && System.currentTimeMillis() - lastWriteTime > 1500) {
 								stop();
+								// この部分でlastWriteTimeが-1のときにコンバートを止めるとしてますが
+								// コンバートを考慮するなら、片方のメディアデータがこなくなったらとめてやりなおすべき。
 							}
 						}
 						Thread.sleep(1000);
@@ -114,7 +116,6 @@ public class TranscodeWriter implements RtmpWriter {
 		lastAccessTime = -1;
 		lastWriteTime = -1;
 		// 最終パケットを書き込んでおく必要がある。
-//		flvPacketManager.getCurrentPacket();
 		flvPacketManager.reset();
 		increment = 0; // インクリメント情報をリセットできるようにしておかないとこまったことになると思われます。
 		if(convertHandler != null) {
@@ -254,12 +255,10 @@ public class TranscodeWriter implements RtmpWriter {
 			Setting setting = Setting.getInstance();
 			for(IMediaPacket packet : packets) {
 				if(packet.isHeader()) {
-					logger.info("header again");
 					packet.writeData(setting.getPath() + name + ".flh", false);
 					flfManager.setFlhFile(setting.getHttpPath() + name + ".flh");
 				}
 				else {
-					logger.info("body data...");
 					increment ++;
 					String targetFile = setting.getPath() + name + "_" + increment + ".flm";
 					String targetHttp = setting.getHttpPath() + name + "_" + increment + ".flm";
@@ -304,6 +303,7 @@ public class TranscodeWriter implements RtmpWriter {
 			}
 			if(header.getTime() - playTime > 1000 && videoCodec == null) {
 				videoCodec = CodecType.NONE;
+				mediaSequenceHeader.resetAvcMediaSequenceHeader();
 				// 動作を開始する。
 				start(header);
 			}
@@ -360,6 +360,7 @@ public class TranscodeWriter implements RtmpWriter {
 				header.getTime() - playTime > 1000)) { // もしくはaudioCodecはきまっていないが1秒たった場合
 				if(audioCodec == null) {
 					audioCodec = CodecType.NONE;
+					mediaSequenceHeader.resetAacMediaSequenceHeader();
 				}
 				// 動作を開始する。
 				start(header);

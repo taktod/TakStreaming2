@@ -1,9 +1,10 @@
 package com.ttProject;
 
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+
+import net.arnx.jsonic.JSON;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,27 +36,26 @@ public class Setting {
 	private final String path; // 出力パス
 	private final String httpPath; // http
 	private final String userHome;
-	private final Map<String, String> envExtra = new HashMap<String, String>();
+	private final Map<String, String> envExtra;
 	private Setting() {
 		try {
 			InputStream is = Setting.class.getResourceAsStream("/setting.properties");
 			Properties prop = new Properties();
 			prop.load(is);
-			logger.info(prop.getProperty("data"));
+			userHome = System.getProperty("user.home");
+			duration = Integer.parseInt(prop.getProperty("duration"));
+			path = prop.getProperty("path");
+			// process用のコマンドとその出力のデータをいれておく。
+			processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
+			// processCommandのインスタンスをいくつか準備しておく。
+			httpPath = "http://192.168.0.3/~todatakahiko/tak/";
+			// 拡張環境変数
+			envExtra = JSON.decode(prop.getProperty("envExtra"));
 		}
 		catch (Exception e) {
 			logger.error("setting.propertiesが読み込めませんでした。", e);
+			throw new RuntimeException("failed to setup setting.");
 		}
-		duration = 5; // 分割は2秒ごとにしておく。
-		userHome = System.getProperty("user.home");
-		// process用のコマンドとその出力のデータをいれておく。
-		processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
-		// processCommandのインスタンスをいくつか準備しておく。
-		path = userHome + "/Sites/tak/";
-		httpPath = "http://192.168.0.3/~todatakahiko/tak/";
-		// 拡張環境変数
-		envExtra.put("PATH", userHome + "/bin/bin");
-		envExtra.put("DYLD_LIBRARY_PATH", userHome + "/bin/lib");
 	}
 	/**
 	 * インスタンス取得
@@ -78,5 +78,8 @@ public class Setting {
 	}
 	public Map<String, String> getEnvExtra() {
 		return envExtra;
+	}
+	public String getUserHome() {
+		return userHome;
 	}
 }
