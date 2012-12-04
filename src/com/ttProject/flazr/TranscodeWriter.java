@@ -1,6 +1,6 @@
 package com.ttProject.flazr;
 
-import java.nio.channels.FileChannel;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -13,7 +13,9 @@ import com.flazr.io.flv.VideoTag;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpWriter;
+import com.ttProject.Setting;
 import com.ttProject.process.ConvertProcessHandler;
+import com.ttProject.segment.flf.FlfManager;
 import com.ttProject.streaming.IMediaPacket;
 import com.ttProject.streaming.flv.FlvMediaPacket;
 import com.ttProject.streaming.flv.FlvPacketManager;
@@ -45,24 +47,25 @@ public class TranscodeWriter implements RtmpWriter {
 	// 最終処理時刻(処理がなくなったと判定するのに必要)
 	private long lastAccessTime = -1;
 	private long lastWriteTime = -1;
+
 	// audioデータのqueue、整列させるのに利用
 	private final AtomOrderManager orderManager = new AtomOrderManager();
 
 	// sequenceHeaderがあるコーデック用のデータ
 	private final MediaSequenceHeader mediaSequenceHeader = new MediaSequenceHeader();
 
-	// ファイル書き込み用(本当はいらない)
-	private FileChannel writeChannel = null;
-	
 	private final FlvPacketManager flvPacketManager;
 	private int increment = 0;
+	private final FlfManager flfManager;
 
 	/**
 	 * コンストラクタ
 	 * @param name
 	 */
 	public TranscodeWriter(String name) {
+		Setting setting = Setting.getInstance();
 		flvPacketManager = new FlvPacketManager();
+		flfManager = FlfManager.getInstance(setting.getPath() + name + ".flf");
 		this.name = name;
 		// 監視スレッドをつくっておいて、２秒間データがこなかったらとまったと判定する。
 		Thread t = new Thread(new Runnable() {
@@ -80,8 +83,6 @@ public class TranscodeWriter implements RtmpWriter {
 								stop();
 							}
 						}
-						// m3u8についてしらべて、映像がながれていなかったら、waitで更新しておく。
-//						M3u8Manager.fillEmptySpace();
 						Thread.sleep(1000);
 					}
 				}
@@ -112,17 +113,10 @@ public class TranscodeWriter implements RtmpWriter {
 		orderManager.reset();
 		lastAccessTime = -1;
 		lastWriteTime = -1;
-		
-		/** 以下のファイル書き込み処理は本来はいらない。socketで通信して、別のプロセスに渡せばよい */
-		try {
-			if(writeChannel != null) {
-				writeChannel.close();
-				writeChannel = null;
-			}
-		}
-		catch (Exception e) {
-			logger.error("ファイルのクローズに失敗", e);
-		}
+		// 最終パケットを書き込んでおく必要がある。
+//		flvPacketManager.getCurrentPacket();
+		flvPacketManager.reset();
+		increment = 0; // インクリメント情報をリセットできるようにしておかないとこまったことになると思われます。
 		if(convertHandler != null) {
 			convertHandler.close();
 			convertHandler = null;
@@ -141,7 +135,9 @@ public class TranscodeWriter implements RtmpWriter {
 			for(IMediaPacket packet : packets) {
 				// 書き込みを実施
 				if(packet.isHeader()) {
-					packet.writeData(name + ".flh", false);
+					Setting setting = Setting.getInstance();
+					packet.writeData(setting.getPath() + name + ".flh", false);
+					flfManager.setFlhFile(setting.getHttpPath() + name + ".flh");
 				}
 				else {
 					throw new RuntimeException("ここでメディアデータがでてくるはずがないだろう。");
@@ -230,7 +226,6 @@ public class TranscodeWriter implements RtmpWriter {
 			// 音声でも映像でもない、データ量0のパケットは捨てます
 			return;
 		}
-		logger.info("生timestamp:" + header.getTime());
 		// 最終アクセス時刻の記録(1秒強アクセスがなければストリームが停止したと判定させる。)
 		lastAccessTime = System.currentTimeMillis();
 		if(header.isAudio()) {
@@ -248,21 +243,28 @@ public class TranscodeWriter implements RtmpWriter {
 		try {
 			// ここでの書き込みをやめて、queueに登録するようにする。
 			ChannelBuffer buffer = flvAtom.write();
-			List<IMediaPacket> packets = flvPacketManager.getPackets(buffer.toByteBuffer());
+			ByteBuffer buf = buffer.toByteBuffer();
+			List<IMediaPacket> packets = flvPacketManager.getPackets(buf.duplicate());
 			/*
 			 * rtmpのストリームデータの場合は設定によっては、音声が抜けるときがあります。
 			 * この場合、音声データがこなくなると、そこでコンバートがとまるみたいです。
 			 * なので、その場合は、適当な時間間隔で音声データを挿入してやるといい感じになります。
+			 * コンバートを考慮するなら、いれておくべきだが、適当な挿入データがみつからないので、とりあえず却下
 			 */
+			Setting setting = Setting.getInstance();
 			for(IMediaPacket packet : packets) {
 				if(packet.isHeader()) {
 					logger.info("header again");
-					packet.writeData(name + ".flh", false);
+					packet.writeData(setting.getPath() + name + ".flh", false);
+					flfManager.setFlhFile(setting.getHttpPath() + name + ".flh");
 				}
 				else {
 					logger.info("body data...");
 					increment ++;
-					((FlvMediaPacket)packet).writeData(name + "_" + increment + ".flm", increment, false);
+					String targetFile = setting.getPath() + name + "_" + increment + ".flm";
+					String targetHttp = setting.getHttpPath() + name + "_" + increment + ".flm";
+					((FlvMediaPacket)packet).writeData(targetFile, increment, false);
+					flfManager.writeData(targetFile, targetHttp, packet.getDuration(), increment, false);
 				}
 			}
 		}

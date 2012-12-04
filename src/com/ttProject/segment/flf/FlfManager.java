@@ -51,7 +51,7 @@ public class FlfManager {
 	private String flhFile;
 	private List<FlfElement> elementData;
 	private final String flfFile;
-	private final int limit = 3;
+	private final int limit = 20;
 	private int num;
 	public static FlfManager getInstance(String flfFile) {
 		FlfManager instance = managerMap.get(flfFile);

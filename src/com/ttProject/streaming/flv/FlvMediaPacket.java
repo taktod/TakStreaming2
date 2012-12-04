@@ -40,7 +40,7 @@ public class FlvMediaPacket extends FlvPacket {
 				result = analizeFlvHeader(buffer);
 				break;
 			default:
-				throw new RuntimeException("解析不能なデータがきました。");
+				throw new RuntimeException("解析不能なデータがきました。" + header);
 			}
 			if(result != null) {
 				buffer.position(position);

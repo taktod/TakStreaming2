@@ -45,7 +45,7 @@ public class FlvHeaderPacket extends FlvPacket {
 			break;
 		case FlvPacketManager.FLV_TAG:
 //			flvHeader = buffer;
-			flvHeader = ByteBuffer.allocate(buffer.remaining() + 4);
+			flvHeader = ByteBuffer.allocate(buffer.remaining());
 			flvHeader.put(buffer);
 			break;
 		default:

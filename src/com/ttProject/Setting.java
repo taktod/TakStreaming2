@@ -30,9 +30,10 @@ import org.slf4j.LoggerFactory;
 public class Setting {
 	private final Logger logger = LoggerFactory.getLogger(Setting.class);
 	private final static Setting instance = new Setting();
-	private final int duration;
+	private final int duration; // セグメントデータのduration
 	private final String processCommand;
 	private final String path; // 出力パス
+	private final String httpPath; // http
 	private final String userHome;
 	private final Map<String, String> envExtra = new HashMap<String, String>();
 	private Setting() {
@@ -50,7 +51,8 @@ public class Setting {
 		// process用のコマンドとその出力のデータをいれておく。
 		processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
 		// processCommandのインスタンスをいくつか準備しておく。
-		path = userHome + "/Sites/hls/";
+		path = userHome + "/Sites/tak/";
+		httpPath = "http://192.168.0.3/~todatakahiko/tak/";
 		// 拡張環境変数
 		envExtra.put("PATH", userHome + "/bin/bin");
 		envExtra.put("DYLD_LIBRARY_PATH", userHome + "/bin/lib");
@@ -70,6 +72,9 @@ public class Setting {
 	}
 	public String getPath() {
 		return path;
+	}
+	public String getHttpPath() {
+		return httpPath;
 	}
 	public Map<String, String> getEnvExtra() {
 		return envExtra;

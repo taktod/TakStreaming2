@@ -34,6 +34,11 @@ public class FlvPacketManager extends MediaPacketManager {
 	public int getCRC() {
 		return CRC;
 	}
+	@Override
+	public void reset() {
+		currentPos = 0;
+		super.reset();
+	}
 	/**
 	 * 拡張子取得
 	 */
