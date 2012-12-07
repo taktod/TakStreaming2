@@ -48,7 +48,7 @@ public class Setting {
 			// process用のコマンドとその出力のデータをいれておく。
 			processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
 			// processCommandのインスタンスをいくつか準備しておく。
-			httpPath = "http://192.168.0.3/~todatakahiko/tak/";
+			httpPath = prop.getProperty("httpPath");
 			// 拡張環境変数
 			envExtra = JSON.decode(prop.getProperty("envExtra"));
 		}
