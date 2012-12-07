@@ -89,8 +89,9 @@ public class FlfManager {
 			pw.println(flhFile);
 			num ++;
 			for(FlfElement data : elementData) {
-//				if(data.isFirst()) {
-//				}
+				if(data.isFirst()) {
+					pw.println("#FLF_RESET:");
+				}
 				pw.println(data.getInfo());
 				pw.println(data.getHttp());
 			}
