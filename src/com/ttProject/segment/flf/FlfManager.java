@@ -83,6 +83,8 @@ public class FlfManager {
 		try {
 			PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(flfFile, false)));
 			pw.println(header);
+			pw.print("#FLF_COUNTER:");
+			pw.println(elementData.get(0).getCount());
 			pw.println("#FLF_HEADER:");
 			pw.println(flhFile);
 			num ++;

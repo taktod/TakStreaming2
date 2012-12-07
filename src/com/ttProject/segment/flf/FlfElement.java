@@ -9,11 +9,15 @@ public class FlfElement {
 	private String http;
 	private String info;
 	private int index;
+	private static int count = 0;
+	private final int myCount;
 	public FlfElement(String file, String http, float duration, int index) {
 		this.file = file;
 		this.http = http;
 		this.info = "#FLF_DATA:" + duration;
 		this.index = index;
+		count ++;
+		myCount = count;
 	}
 	public String getFile() {
 		return file;
@@ -29,5 +33,8 @@ public class FlfElement {
 	}
 	public boolean isFirst() {
 		return index == 1;
+	}
+	public int getCount() {
+		return myCount;
 	}
 }
