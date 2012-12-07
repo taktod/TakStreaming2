@@ -37,7 +37,15 @@ public class RtmpClient {
 		if(count == 1 && options.getClientOptionsList() == null) {
 			// 単一動作のみ実行しておきます。
 			options.setWriterToSave(new TranscodeWriter(options.getStreamName()));
-			connect(options);
+			try {
+				while(true) {
+					connect(options);
+					Thread.sleep(1000);
+				}
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
 			return;
 		}
 		logger.error("単一プロセスのみ許可しています。");

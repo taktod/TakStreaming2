@@ -5,7 +5,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
+import com.flazr.util.Utils;
 import com.ttProject.Setting;
+import com.ttProject.flazr.CodecType;
 
 public class FlvMediaPacket extends FlvPacket {
 	private final FlvHeaderPacket headerPacket;
@@ -40,6 +42,11 @@ public class FlvMediaPacket extends FlvPacket {
 				result = analizeFlvHeader(buffer);
 				break;
 			default:
+				System.out.println("解析不能なデータがきました。");
+				byte[] data = new byte[buffer.remaining()];
+				buffer.get(data);
+				System.out.println("position:" + position);
+				System.out.println(Utils.toHex(data, true));
 				throw new RuntimeException("解析不能なデータがきました。" + header);
 			}
 			if(result != null) {
@@ -76,9 +83,10 @@ public class FlvMediaPacket extends FlvPacket {
 		// 4byte終端データを確認する。
 		byte[] tail = new byte[4];
 		buffer.get(tail);
+		headerPacket.setAudioCodec(CodecType.getAudioCodecType(body[0]));
 		// コーデック確認
-		switch((body[0] & 0xF0) >>> 4) {
-		case 10: // AAC
+		boolean isSequenceHeader = false;
+		if(headerPacket.getAudioCodec() == CodecType.AAC) {
 			// AACなら次のパケットを確認して、headerであるか確認する。
 			if(body[1] == 0x00) {
 				// headerだった
@@ -88,10 +96,21 @@ public class FlvMediaPacket extends FlvPacket {
 				sequenceHeader.put(tail);
 				sequenceHeader.flip();
 				headerPacket.analize(sequenceHeader);
+				isSequenceHeader = true;
 			}
-			break;
-		default: // その他
-			break;
+		}
+		// sequenceデータではなく
+		// キーフレームだった場合はパケットの境目と判定しなければいけない。
+		if(headerPacket.getVideoCodec() == CodecType.NONE && !isSequenceHeader) {
+			float passedTime = (getManager().getCurrentPos() - startPos) / 1000;
+			if(passedTime >= Setting.getInstance().getDuration()) {
+				// TODO ここに書いておくと音声のみのflvの分割が発生しなくなるので、なんとかしておいたほうがいいと思う。
+				// バッファサイズがたまっている場合は、終端がきたことになるので、分割する。
+				setDuration(passedTime);
+				// 記録済み時間について記録しておく。
+				getManager().addPassedTime(getDuration());
+				return true;
+			}
 		}
 		// シーケンスヘッダも書き込んでおく。(書き込んでおかないと、中途で変更があったときに困る。)
 		ByteBuffer saveBuffer = getBuffer(size+ 4 + 11);
@@ -134,8 +153,8 @@ public class FlvMediaPacket extends FlvPacket {
 		buffer.get(tail);
 		boolean isSequenceHeader = false;
 		// コーデック確認
-		switch((body[0] & 0x0F)) {
-		case 7: // AVC
+		headerPacket.setVideoCodec(CodecType.getVideoCodecType(body[0]));
+		if(headerPacket.getVideoCodec() == CodecType.AVC) {
 			// AVCなら次のパケットを確認して、headerであるか確認する。
 			if((body[0] & 0x10) == 0x10 && body[1] == 0x00) {
 				// headerだった
@@ -147,21 +166,17 @@ public class FlvMediaPacket extends FlvPacket {
 				headerPacket.analize(sequenceHeader);
 				isSequenceHeader = true;
 			}
-			break;
-		default: // その他
-			break;
 		}
 		// sequenceデータではなく
 		// キーフレームだった場合はパケットの境目と判定しなければいけない。
 		if((body[0] & 0x10) == 0x10 && !isSequenceHeader) {
-			long passedTime = getManager().getCurrentPos() - startPos;
+			float passedTime = (getManager().getCurrentPos() - startPos) / 1000;
 			if(passedTime >= Setting.getInstance().getDuration()) {
 				// TODO ここに書いておくと音声のみのflvの分割が発生しなくなるので、なんとかしておいたほうがいいと思う。
 				// バッファサイズがたまっている場合は、終端がきたことになるので、分割する。
-				setDuration(getManager().getPassedTime() / 1000 - getManager().getPassedTime());
+				setDuration(passedTime);
 				// 記録済み時間について記録しておく。
 				getManager().addPassedTime(getDuration());
-				System.out.println("分割ポイントがきました。");
 				return true;
 			}
 		}

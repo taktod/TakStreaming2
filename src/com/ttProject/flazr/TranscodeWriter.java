@@ -63,6 +63,7 @@ public class TranscodeWriter implements RtmpWriter {
 	 * @param name
 	 */
 	public TranscodeWriter(String name) {
+		logger.info("ここにきたよん。");
 		Setting setting = Setting.getInstance();
 		flvPacketManager = new FlvPacketManager();
 		flfManager = FlfManager.getInstance(setting.getPath() + name + ".flf");
@@ -157,6 +158,7 @@ public class TranscodeWriter implements RtmpWriter {
 		// mediaSequenceHeaderがあるコーデックの場合は情報を書き込む
 		for(FlvAtom sequenceHeader : mediaSequenceHeader.getData()) {
 			write(sequenceHeader);
+			sequenceHeader.getData().resetReaderIndex();
 		}
 		if(videoCodec != CodecType.NONE) {
 			// 動画の場合は開始header以前にあるデータは必要ないので、音声queueからデータを削除します。
@@ -223,7 +225,7 @@ public class TranscodeWriter implements RtmpWriter {
 	private void writeHook(final FlvAtom flvAtom) {
 		RtmpHeader header = flvAtom.getHeader();
 		ChannelBuffer dataBuffer = flvAtom.getData().duplicate();
-		if(!header.isAudio() && !header.isVideo() || dataBuffer.capacity() == 0) {
+		if((!header.isAudio() && !header.isVideo()) || dataBuffer.capacity() == 0) {
 			// 音声でも映像でもない、データ量0のパケットは捨てます
 			return;
 		}
@@ -268,7 +270,8 @@ public class TranscodeWriter implements RtmpWriter {
 			}
 		}
 		catch (Exception e) {
-			logger.error("ファイル書き込みに失敗しました。", e);
+//			logger.error("ファイル書き込みに失敗しました。", e);
+			System.exit(-1); // 異常終了
 		}
 	}
 	/**

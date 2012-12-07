@@ -48,6 +48,9 @@ public class MediaSequenceHeader {
 			aacMediaSequenceHeader = flvAtom;
 			return true;
 		}
+		else if(tag.getCodecType() != AudioTag.CodecType.AAC) {
+			aacMediaSequenceHeader = null;
+		}
 		return false;
 	}
 	/**
@@ -61,6 +64,9 @@ public class MediaSequenceHeader {
 		if(tag.getCodecType() == VideoTag.CodecType.AVC && checkByte == 0x00) {
 			avcMediaSequenceHeader = flvAtom;
 			return true;
+		}
+		else if(tag.getCodecType() != VideoTag.CodecType.AVC){
+			avcMediaSequenceHeader = null;
 		}
 		return false;
 	}

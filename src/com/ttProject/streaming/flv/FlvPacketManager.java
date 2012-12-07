@@ -37,6 +37,7 @@ public class FlvPacketManager extends MediaPacketManager {
 	@Override
 	public void reset() {
 		currentPos = 0;
+		headerPacket = null;
 		super.reset();
 	}
 	/**

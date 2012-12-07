@@ -84,5 +84,6 @@ public abstract class MediaPacketManager implements IMediaPacketManager {
 	public void reset() {
 		passedTime = 0;
 		currentPacket = null;
+		buffer = null;
 	}
 }

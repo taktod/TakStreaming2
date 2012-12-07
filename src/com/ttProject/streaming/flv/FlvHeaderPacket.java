@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
+import com.ttProject.flazr.CodecType;
+
 /**
  * flvHeaderPacketは先頭にHashデータを保持させておく。(4バイト)
  * http経由でアクセスする場合は、どのファイルにアクセスすればいいかわからないので、インデックス番号を応答するものも準備しておく。(そのインデックス番号以降のデータをうけとるみたいな感じ)
@@ -15,6 +17,8 @@ public class FlvHeaderPacket extends FlvPacket {
 	private ByteBuffer flvHeader = null;
 	private ByteBuffer videoSequenceHeader = null;
 	private ByteBuffer audioSequenceHeader = null;
+	private CodecType videoCodec = CodecType.NONE;
+	private CodecType audioCodec = CodecType.NONE;
 	private boolean isSaved = false;
 	public FlvHeaderPacket(FlvPacketManager manager) {
 		super(manager);
@@ -26,6 +30,18 @@ public class FlvHeaderPacket extends FlvPacket {
 	public boolean isSaved() {
 		return isSaved;
 	}
+	public CodecType getVideoCodec() {
+		return videoCodec;
+	}
+	public void setVideoCodec(CodecType codec) {
+		videoCodec = codec;
+	}
+	public CodecType getAudioCodec() {
+		return audioCodec;
+	}
+	public void setAudioCodec(CodecType codec) {
+		audioCodec = codec;
+	}
 	/**
 	 * 解析を実施します。
 	 * ここにくるデータは、mediaPacket側でみつけた、単一パケットのコピーとしますので、終端等は調べる必要なし。
@@ -36,17 +52,23 @@ public class FlvHeaderPacket extends FlvPacket {
 		buffer.rewind();
 		switch(type) {
 		case FlvPacketManager.AUDIO_TAG:
+			System.out.println("audioTagの書き込み");
 			audioSequenceHeader = buffer;
 			isSaved = false;
 			break;
 		case FlvPacketManager.VIDEO_TAG:
+			System.out.println("videoTagの書き込み");
 			videoSequenceHeader = buffer;
 			isSaved = false;
 			break;
 		case FlvPacketManager.FLV_TAG:
-//			flvHeader = buffer;
-			flvHeader = ByteBuffer.allocate(buffer.remaining());
-			flvHeader.put(buffer);
+			System.out.println("flvtagの書き込み");
+			flvHeader = buffer;
+			videoSequenceHeader = null;
+			audioSequenceHeader = null;
+//			flvHeader = ByteBuffer.allocate(buffer.remaining());
+//			flvHeader.put(buffer);
+//			flvHeader.flip();
 			break;
 		default:
 			return false;
@@ -72,6 +94,7 @@ public class FlvHeaderPacket extends FlvPacket {
 	@Override
 	public void writeData(String targetFile, boolean append) {
 		try {
+			System.out.println("実際に書き込みます。");
 			WritableByteChannel channel = Channels.newChannel(new FileOutputStream(targetFile, append));
 			// 先頭にcrc値をいれておく必要あり。
 			ByteBuffer header = ByteBuffer.allocate(4);
