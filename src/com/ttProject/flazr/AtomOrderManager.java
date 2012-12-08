@@ -1,5 +1,6 @@
 package com.ttProject.flazr;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -40,7 +41,7 @@ public class AtomOrderManager {
 	 * @return
 	 */
 	public List<FlvAtom> getPassedData(int timestamp) {
-		List<FlvAtom> result = new LinkedList<FlvAtom>();
+		List<FlvAtom> result = new ArrayList<FlvAtom>();
 		FlvAtom audioAtom = lastAudioAtom;
 		lastAudioAtom = null;
 		do {
