@@ -106,6 +106,7 @@ public class FlvHeaderPacket extends FlvPacket {
 			channel.write(buffer);
 		}
 		catch (Exception e) {
+			e.printStackTrace();
 		}
 		finally {
 			isSaved = true;

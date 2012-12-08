@@ -270,7 +270,7 @@ public class TranscodeWriter implements RtmpWriter {
 			}
 		}
 		catch (Exception e) {
-//			logger.error("ファイル書き込みに失敗しました。", e);
+			logger.error("ファイル書き込みに失敗しました。", e);
 			System.exit(-1); // 異常終了
 		}
 	}
