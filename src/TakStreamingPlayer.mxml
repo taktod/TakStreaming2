@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="320" minHeight="240" width="640" height="400"
+			   initialize="init(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ttProject.info.Data;
+			import com.ttProject.info.Logger;
+			import com.ttProject.tak.TakStreamingFactory;
+			import com.ttProject.tak.core.TakStream;
+			import com.ttProject.tak.http.HttpTakStream;
+			
+			import mx.events.FlexEvent;
+			private var netStream:NetStream;
+			private var volume:Number;
+			protected function init(event:FlexEvent):void
+			{
+				// 初期化動作
+				// 本当はここでswfファイルデータを読み込む部分が必要。URLLoaderとかつかって、swfバイナリを取得して云々しなければいけないだろう。
+				Logger.setup(logArea);
+				Logger.info("no resetSeekVersion");
+				Data.setup(data);
+				Data.update(null);
+				netStream = null;
+				volume = 0;
+				var timer:Timer = new Timer(100);
+				timer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void {
+					Data.update(netStream);
+				});
+				timer.start();
+			}
+			protected function play(event:MouseEvent):void {
+				// アドレスに対応したデータを取得して動作させる。
+				if(netStream != null) {
+					netStream.close();
+				}
+				try {
+					netStream = TakStreamingFactory.getStream(address.text);
+					uiComp.addChild(TakStreamingFactory.getVideo());
+					netStream.play(null);
+					netStream.soundTransform = new SoundTransform(volume);
+				}
+				catch(e:Error) {
+					Logger.info("playError:" + e.toString());
+				}
+			}
+			protected function slider(val:String):void {
+				volume = Number(val) / 10;
+				if(netStream != null) {
+					netStream.soundTransform = new SoundTransform(volume);
+				}
+			}
+			protected function log(event:MouseEvent):void {
+				logArea.visible = logButton.selected;
+			}
+		]]>
+	</fx:Script>
+	<mx:Canvas x="10" y="10">
+		<mx:UIComponent id="uiComp" />
+	</mx:Canvas>
+	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="logArea"/>
+	<s:TextInput  x="10" y="368" width="466" id="address" text="http://49.212.39.17/tak/test.flf"/>
+	<s:Button  x="485" y="369" label="play" click="play(event)"/>
+	<mx:DataGrid x="368" y="10" width="262" height="353" id="data">
+		<mx:columns>
+			<mx:DataGridColumn headerText="name" dataField="name" resizable="false" width="80"/>
+			<mx:DataGridColumn headerText="value" dataField="value"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<s:ToggleButton id="logButton" x="560" y="369" label="log" click="log(event)"/>
+	<s:VSlider x="354" y="263" dataTipFormatFunction="slider"/>
+</s:Application>
