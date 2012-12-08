@@ -91,7 +91,6 @@ public class FlvHeaderPacket extends FlvPacket {
 	@Override
 	public void writeData(String targetFile, boolean append) {
 		try {
-			System.out.println("実際に書き込みます。");
 			WritableByteChannel channel = Channels.newChannel(new FileOutputStream(targetFile, append));
 			// 先頭にcrc値をいれておく必要あり。
 			ByteBuffer header = ByteBuffer.allocate(4);
