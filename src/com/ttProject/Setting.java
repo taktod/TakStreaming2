@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 public class Setting {
 	private final Logger logger = LoggerFactory.getLogger(Setting.class);
 	private final static Setting instance = new Setting();
-	private final int duration; // セグメントデータのduration
+	private final float duration; // セグメントデータのduration
 	private final String processCommand;
 	private final String path; // 出力パス
 	private final String httpPath; // http
@@ -43,7 +43,7 @@ public class Setting {
 			Properties prop = new Properties();
 			prop.load(is);
 			userHome = System.getProperty("user.home");
-			duration = Integer.parseInt(prop.getProperty("duration"));
+			duration = Float.parseFloat(prop.getProperty("duration"));
 			path = prop.getProperty("path");
 			// process用のコマンドとその出力のデータをいれておく。
 			processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
@@ -67,7 +67,7 @@ public class Setting {
 	public String getProcessCommand() {
 		return processCommand;
 	}
-	public int getDuration() {
+	public float getDuration() {
 		return duration;
 	}
 	public String getPath() {

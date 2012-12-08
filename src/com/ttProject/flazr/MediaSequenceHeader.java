@@ -30,9 +30,15 @@ public class MediaSequenceHeader {
 		}
 		return result;
 	}
+	/**
+	 * aacのデータを初期化する。
+	 */
 	public void resetAacMediaSequenceHeader() {
 		aacMediaSequenceHeader = null;
 	}
+	/**
+	 * avcのデータを初期化する
+	 */
 	public void resetAvcMediaSequenceHeader() {
 		avcMediaSequenceHeader = null;
 	}

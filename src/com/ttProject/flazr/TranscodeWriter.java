@@ -22,15 +22,15 @@ import com.ttProject.streaming.flv.FlvPacketManager;
 
 /**
  * 変換用のwriter動作
- * TODO FMSはとりあえず大丈夫っぽいけど、他のサーバーだと中途からやりなおすと、こまったことになるかもしれない。
+ * FMSしか確認してない。他のサーバーならどうなるか？
  * @author taktod
  */
 public class TranscodeWriter implements RtmpWriter {
-	/** ロガー */
 	private static final Logger logger = LoggerFactory.getLogger(TranscodeWriter.class);
-	private final int[] channelTimes = new int[RtmpHeader.MAX_CHANNEL_ID];
-	private int primaryChannel = -1;
+
+	private final int[]  channelTimes = new int[RtmpHeader.MAX_CHANNEL_ID];
 	private final String name;
+	private int primaryChannel = -1;
 
 	// コンバートを開始したときの先頭の時刻保持(この時刻分だけデータがずれます。)
 	private int startTime = -1; // 出力開始timestamp
@@ -63,7 +63,6 @@ public class TranscodeWriter implements RtmpWriter {
 	 * @param name
 	 */
 	public TranscodeWriter(String name) {
-		logger.info("ここにきたよん。");
 		Setting setting = Setting.getInstance();
 		flvPacketManager = new FlvPacketManager();
 		flfManager = FlfManager.getInstance(setting.getPath() + name + ".flf");
@@ -81,11 +80,12 @@ public class TranscodeWriter implements RtmpWriter {
 								stop();
 							}
 							if(lastWriteTime != -1 && System.currentTimeMillis() - lastWriteTime > 1500) {
+								// メディアの書き込みが1.5秒ないので、何らかの問題が発生したと判定し、止めます。
 								stop();
-								// この部分でlastWriteTimeが-1のときにコンバートを止めるとしてますが
-								// コンバートを考慮するなら、片方のメディアデータがこなくなったらとめてやりなおすべき。
+								// コンバート動作を考慮するなら、片側のメディアデータがながれてこなくなったら止めるべき。(ffmpegのコンバートがとまってしまうため。)
 							}
 						}
+						// １秒後に再度判定する。
 						Thread.sleep(1000);
 					}
 				}
@@ -130,7 +130,6 @@ public class TranscodeWriter implements RtmpWriter {
 	private void start(RtmpHeader header) {
 		logger.info("始めます。");
 		// ファイルの書き込みチャンネルを開いてとりあえず、書き込みテストを実行します。
-		/** 以下のファイルオープン処理は本来必要ない。 */
 		try {
 			// 特に取得するものでもないと思うのでスルー
 			List<IMediaPacket> packets = flvPacketManager.getPackets(FlvAtom.flvHeader().toByteBuffer()); // headerパケットが拾えるかもしれんか・・・
@@ -147,9 +146,8 @@ public class TranscodeWriter implements RtmpWriter {
 			}
 		}
 		catch (Exception e) {
-			logger.error("ファイルのオープンに失敗", e);
+			logger.error("パケット生成に失敗", e);
 		}
-		/** ここまでいらない */
 		isPlaying = true;
 		startTime = header.getTime();
 		// このタイミングでprocessサーバーとかを作成する。
@@ -183,14 +181,6 @@ public class TranscodeWriter implements RtmpWriter {
 	public void write(RtmpMessage message) {
 		final RtmpHeader header = message.getHeader();
 		if(header.isAggregate()) { // aggregate
-/*			final ChannelBuffer in = message.encode();
-			while(in.readable()) {
-				final FlvAtom flvAtom = new FlvAtom(in);
-				final int absoluteTime = flvAtom.getHeader().getTime();
-				channelTimes[primaryChannel] = absoluteTime;
-//				write(flvAtom); // 書き込む
-				writeHook(flvAtom);
-			}// */
 			int difference = -1;
 			final ChannelBuffer in = message.encode();
 			while(in.readable()) {
@@ -225,8 +215,8 @@ public class TranscodeWriter implements RtmpWriter {
 	private void writeHook(final FlvAtom flvAtom) {
 		RtmpHeader header = flvAtom.getHeader();
 		ChannelBuffer dataBuffer = flvAtom.getData().duplicate();
+		// 音声でも映像でもない、データ量0のパケットは捨てます
 		if((!header.isAudio() && !header.isVideo()) || dataBuffer.capacity() == 0) {
-			// 音声でも映像でもない、データ量0のパケットは捨てます
 			return;
 		}
 		// 最終アクセス時刻の記録(1秒強アクセスがなければストリームが停止したと判定させる。)
@@ -291,9 +281,10 @@ public class TranscodeWriter implements RtmpWriter {
 		if(audioCodec != CodecType.getCodecType(tag)) {
 			stop();
 		}
+		// シーケンスヘッダ確認
 		sequenceHeader = mediaSequenceHeader.isAacMediaSequenceHeader(flvAtom, tag, dataBuffer.readByte());
+		// 本処理前の準備
 		if(!isPlaying) {
-			// 初メディアデータであるか確認。初だったらplayTimeに現在のタイムスタンプを保持しておく。
 			if(playTime == -1) {
 				playTime = header.getTime();
 			}
@@ -304,6 +295,7 @@ public class TranscodeWriter implements RtmpWriter {
 			if(header.getTime() == 0) {
 				return;
 			}
+			// １秒以上たって、videoCodecが決定されない場合は音声のみとして始める
 			if(header.getTime() - playTime > 1000 && videoCodec == null) {
 				videoCodec = CodecType.NONE;
 				mediaSequenceHeader.resetAvcMediaSequenceHeader();
@@ -343,7 +335,9 @@ public class TranscodeWriter implements RtmpWriter {
 		if(videoCodec != CodecType.getCodecType(tag)) {
 			stop();
 		}
+		// シーケンスヘッダ確認
 		sequenceHeader = mediaSequenceHeader.isAvcMediaSequenceHeader(flvAtom, tag, dataBuffer.readByte());
+		// 開始前処理
 		if(!isPlaying) {
 			// 初メディアデータであるか確認。初だったらplayTimeに現在のタイムスタンプを保持しておく。(ここにいれる理由は、コーデック違いにより、前の処理の部分で書き換えが発生する可能性があるため。)
 			if(playTime == -1) {

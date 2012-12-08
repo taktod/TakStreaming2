@@ -104,7 +104,6 @@ public class FlvMediaPacket extends FlvPacket {
 		if(headerPacket.getVideoCodec() == CodecType.NONE && !isSequenceHeader) {
 			float passedTime = (getManager().getCurrentPos() - startPos) / 1000;
 			if(passedTime >= Setting.getInstance().getDuration()) {
-				// TODO ここに書いておくと音声のみのflvの分割が発生しなくなるので、なんとかしておいたほうがいいと思う。
 				// バッファサイズがたまっている場合は、終端がきたことになるので、分割する。
 				setDuration(passedTime);
 				// 記録済み時間について記録しておく。
@@ -170,9 +169,8 @@ public class FlvMediaPacket extends FlvPacket {
 		// sequenceデータではなく
 		// キーフレームだった場合はパケットの境目と判定しなければいけない。
 		if((body[0] & 0x10) == 0x10 && !isSequenceHeader) {
-			float passedTime = (getManager().getCurrentPos() - startPos) / 1000;
+			float passedTime = (getManager().getCurrentPos() - startPos) / 1000f;
 			if(passedTime >= Setting.getInstance().getDuration()) {
-				// TODO ここに書いておくと音声のみのflvの分割が発生しなくなるので、なんとかしておいたほうがいいと思う。
 				// バッファサイズがたまっている場合は、終端がきたことになるので、分割する。
 				setDuration(passedTime);
 				// 記録済み時間について記録しておく。
