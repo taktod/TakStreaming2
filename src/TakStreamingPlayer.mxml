@@ -34,6 +34,7 @@
 				timer.start();
 			}
 			protected function play(event:MouseEvent):void {
+				// http://49.212.39.17/tak/test.flf
 				// アドレスに対応したデータを取得して動作させる。
 				if(netStream != null) {
 					netStream.close();
@@ -41,7 +42,7 @@
 				try {
 					netStream = TakStreamingFactory.getStream(address.text);
 					uiComp.addChild(TakStreamingFactory.getVideo());
-					netStream.play(null);
+					netStream.play(stream.text);
 					netStream.soundTransform = new SoundTransform(volume);
 				}
 				catch(e:Error) {
@@ -57,20 +58,32 @@
 			protected function log(event:MouseEvent):void {
 				logArea.visible = logButton.selected;
 			}
+			protected function help(event:MouseEvent):void {
+				helpArea.text = "This play is demo for takStreaming family.\n"
+					+ "http mode: download segment via http, easy to scale\n"
+					+ " example: http://49.212.39.17/tak/test.flf\n"
+					+ "rtmp mode: download segment via rtmp\n"
+					+ " example: http://localhost/tak test\n"
+					+ " required to use red5 application.\n";
+				helpArea.visible = helpButton.selected;
+			}
 		]]>
 	</fx:Script>
 	<mx:Canvas x="10" y="10">
 		<mx:UIComponent id="uiComp" />
 	</mx:Canvas>
-	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="logArea"/>
-	<s:TextInput  x="10" y="368" width="466" id="address" text="http://49.212.39.17/tak/test.flf"/>
-	<s:Button  x="485" y="369" label="play" click="play(event)"/>
 	<mx:DataGrid x="368" y="10" width="262" height="353" id="data">
 		<mx:columns>
 			<mx:DataGridColumn headerText="name" dataField="name" resizable="false" width="80"/>
 			<mx:DataGridColumn headerText="value" dataField="value"/>
 		</mx:columns>
 	</mx:DataGrid>
-	<s:ToggleButton id="logButton" x="560" y="369" label="log" click="log(event)"/>
 	<s:VSlider x="354" y="263" dataTipFormatFunction="slider"/>
+	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="helpArea"/>
+	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="logArea"/>
+	<s:TextInput  x="10" y="368" width="282" id="address" text="http://49.212.39.17/tak/test.flf"/>
+	<s:TextInput  x="295" y="368" width="114" id="stream" text="test"/>
+	<s:Button  x="412" y="369" label="play" click="play(event)"/>
+	<s:ToggleButton id="helpButton" x="486" y="369" label="help" click="help(event)"/>
+	<s:ToggleButton id="logButton" x="560" y="369" label="log" click="log(event)"/>
 </s:Application>

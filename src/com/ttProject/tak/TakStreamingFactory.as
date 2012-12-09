@@ -4,6 +4,7 @@ package com.ttProject.tak
 	import com.ttProject.tak.core.TakStream;
 	import com.ttProject.tak.core.TakVideo;
 	import com.ttProject.tak.http.HttpTakStream;
+	import com.ttProject.tak.rtmp.RtmpTakStream;
 	
 	import flash.display.Sprite;
 	import flash.media.Video;
@@ -33,6 +34,7 @@ package com.ttProject.tak
 					break;
 				case "rtmp":
 					Logger.info("rtmp");
+					stream = new RtmpTakStream(url);
 					break;
 				case "rtmfp":
 					Logger.info("rtmfp");
