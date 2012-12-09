@@ -28,5 +28,11 @@ http://49.212.39.17/player/TakStreamingPlayer.html
 放送名:上記の放送にあわせる
 で視聴できます。
 
+対応red5:
+red5 1.0 final
+12/9動作確認しました。
+
+プログラム的には0.8以降ならだいたい対応できているのでは？と思っています。
+
 今後:
 ・とりあえずred5のservlet機能経由でhttpTakStreaming再生ができるようにしておきたい。
