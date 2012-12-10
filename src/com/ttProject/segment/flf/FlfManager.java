@@ -12,6 +12,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ttProject.red5.ex.TakApplicationAdapter;
+
 /**
  * flfのデータを処理するためのマネージャー
  * @author taktod
@@ -51,7 +53,7 @@ public class FlfManager {
 	private String flhFile;
 	private List<FlfElement> elementData;
 	private final String flfFile;
-	private final int limit = 20;
+	private final int limit;
 	private int num;
 	public static FlfManager getInstance(String flfFile) {
 		FlfManager instance = managerMap.get(flfFile);
@@ -63,6 +65,7 @@ public class FlfManager {
 	}
 	private FlfManager(String flfFile) {
 		this.flfFile = flfFile;
+		this.limit = TakApplicationAdapter.getLimit();
 		header = "#FLF_EXT";
 		elementData = new ArrayList<FlfElement>();
 		num = 0;

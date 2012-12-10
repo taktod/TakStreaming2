@@ -275,8 +275,6 @@ public class FlvMediaPacket extends FlvPacket {
 		buffer.get(data);
 		result.put(data);
 		// 戻しておく。
-		buffer.rewind();
-		buffer.flip();
 		result.flip();
 		return result;
 	}

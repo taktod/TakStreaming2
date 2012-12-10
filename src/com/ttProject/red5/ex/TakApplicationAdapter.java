@@ -13,9 +13,35 @@ import com.ttProject.red5.RtmpStreamObserver;
  * @author taktod
  */
 public class TakApplicationAdapter extends ApplicationAdapter {
+	// segmentに関する情報
 	private static float duration = 2;
+	private static int limit = 20;
 	public static float getDuration() {
 		return duration;
+	}
+	public static int getLimit() {
+		return limit;
+	}
+	public void setDuration(float val) {
+		duration = val;
+	}
+	public void setLimit(int val) {
+		limit = val;
+	}
+	// pathに関する情報
+	private static String filePath = null;
+	private static String httpPath = null;
+	public static String getFilePath() {
+		return filePath;
+	}
+	public static String getHttpPath() {
+		return httpPath;
+	}
+	public void setFilePath(String val) {
+		filePath = val;
+	}
+	public void setHttpPath(String val) {
+		httpPath = val;
 	}
 	@Override
 	public synchronized void disconnect(IConnection conn, IScope scope) {
@@ -45,7 +71,7 @@ public class TakApplicationAdapter extends ApplicationAdapter {
 			observer = (RtmpStreamObserver)obj;
 		}
 		else {
-			observer = new RtmpStreamObserver();
+			observer = new RtmpStreamObserver(stream.getScope().getContextPath() + "/" + stream.getPublishedName());
 		}
 		stream.addStreamListener(observer);
 		setAttribute(targetName, observer);
@@ -78,7 +104,7 @@ public class TakApplicationAdapter extends ApplicationAdapter {
 			observer = (RtmpStreamObserver)obj;
 		}
 		else {
-			observer = new RtmpStreamObserver();
+			observer = new RtmpStreamObserver(conn.getScope().getContextPath() + "/" + name);
 		}
 		if(conn instanceof IServiceCapableConnection) {
 			observer.addStreamClient((IServiceCapableConnection)conn);

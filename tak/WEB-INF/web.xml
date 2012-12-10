@@ -43,4 +43,19 @@
 		<url-pattern>/idle/*</url-pattern>
 	</servlet-mapping>
 	
+	<mime-mapping>
+		<extension>flf</extension>
+		<mime-type>text/flf</mime-type>
+	</mime-mapping>
+
+	<mime-mapping>
+		<extension>flh</extension>
+		<mime-type>application/octet-stream</mime-type>
+	</mime-mapping>
+	
+	<mime-mapping>
+		<extension>flm</extension>
+		<mime-type>application/octet-stream</mime-type>
+	</mime-mapping>
+	
 </web-app>

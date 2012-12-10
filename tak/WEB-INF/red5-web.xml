@@ -20,6 +20,11 @@
 		<property name="virtualHosts" value="${webapp.virtualHosts}" />
 	</bean>
 
-	<bean id="web.handler" class="com.ttProject.red5.ex.TakApplicationAdapter" />
+	<bean id="web.handler" class="com.ttProject.red5.ex.TakApplicationAdapter">
+		<property name="duration" value="1" />
+		<property name="limit" value="20" />
+		<property name="filePath" value="" />
+		<property name="httpPath" value="http://localhost:5080/" />
+	</bean>
 
 </beans>

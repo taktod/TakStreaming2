@@ -1,5 +1,6 @@
 package com.ttProject.red5;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
@@ -20,6 +21,8 @@ import org.red5.server.stream.IStreamData;
 
 import com.ttProject.red5.data.DataManager;
 import com.ttProject.red5.data.TakData;
+import com.ttProject.red5.ex.TakApplicationAdapter;
+import com.ttProject.segment.flf.FlfManager;
 import com.ttProject.streaming.IMediaPacket;
 import com.ttProject.streaming.flv.FlvHeaderPacket;
 import com.ttProject.streaming.flv.FlvMediaPacket;
@@ -48,6 +51,9 @@ public class RtmpStreamObserver implements IStreamListener {
 	private final FlvPacketManager flvPacketManager;
 	private int counter = 0;
 	private final DataManager manager;
+	private final FlfManager flfManager;
+	private final String httpPath;
+	private final String filePath;
 
 	// いなくなったらきちんと消えるようにweakHashMapにしとく。
 	private Set<IServiceCapableConnection> connSet = new HashSet<IServiceCapableConnection>();
@@ -58,9 +64,50 @@ public class RtmpStreamObserver implements IStreamListener {
 	 * コンストラクタ
 	 * @param name
 	 */
-	public RtmpStreamObserver() {
+	public RtmpStreamObserver(String name) {
+		FlfManager manager = null;
 		flvPacketManager = new FlvPacketManager();
-		manager = new DataManager();
+		this.manager = new DataManager();
+		String file = TakApplicationAdapter.getFilePath();
+		String http = TakApplicationAdapter.getHttpPath();
+		if(file != null && http != null) {
+			try {
+				// ファイルのパスが有効であるか確認する必要がある。
+				File f = new File(file);
+				// 相対パスで書かれているか絶対パスで書かれているか？
+				if(file.startsWith(f.getAbsolutePath())) { // 絶対パス
+					f = new File(file + "/" + name);
+				}
+				else { // 相対パス
+					f = new File("webapps/" + file + "/" + name);
+				}
+				// ディレクトリをつくる。
+				f.getParentFile().mkdirs();
+				file = f.getAbsolutePath();
+				// httpは絶対パスというものが存在しない。
+				if(http.endsWith("/")) {
+					http = http.substring(0, http.length() - 1);
+				}
+				if(name.startsWith("/")) {
+					name = name.substring(1);
+				}
+				if(name.endsWith("/")) {
+					name = name.substring(0, name.length() - 1);
+				}
+				http = http + "/" + name;
+				manager = FlfManager.getInstance(file + ".flf");
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+				manager = null;
+			}
+		}
+		else {
+			manager = null;
+		}
+		filePath = file;
+		httpPath = http;
+		flfManager = manager;
 	}
 	public void addStreamClient(IServiceCapableConnection sconn) {
 		connSet.add(sconn);
@@ -130,6 +177,10 @@ public class RtmpStreamObserver implements IStreamListener {
 				if(packet.isHeader()) {
 					manager.setHeader(((FlvHeaderPacket)packet).getBufferData());
 					sendHeader();
+					if(flfManager != null) {
+						packet.writeData(filePath + ".flh", false);
+						flfManager.setFlhFile(httpPath + ".flh");
+					}
 				}
 				else {
 					throw new RuntimeException("headerデータでないパケットができてしまいました？");
@@ -194,17 +245,25 @@ public class RtmpStreamObserver implements IStreamListener {
 			List<IMediaPacket> packets = flvPacketManager.getPackets(tagBuffer);
 			for(IMediaPacket packet : packets) {
 				if(packet.isHeader()) {
-					System.out.println("header");
 					manager.setHeader(((FlvHeaderPacket)packet).getBufferData());
 					sendHeader();
+					if(flfManager != null) {
+						packet.writeData(filePath + ".flh", false);
+						flfManager.setFlhFile(httpPath + ".flh");
+					}
 				}
 				else {
-					System.out.println("body");
 					counter ++;
 					ByteBuffer bufferData = ((FlvMediaPacket)packet).getBufferData(counter);
 					TakData takData = new TakData(counter, bufferData);
 					manager.addData(takData);
 					sendData(bufferData.array());
+					if(flfManager != null) {
+						String targetFile = filePath + "_" + counter + ".flm";
+						String targetHttp = httpPath + "_" + counter + ".flm";
+						((FlvMediaPacket)packet).writeData(targetFile, counter, false);
+						flfManager.writeData(targetFile, targetHttp, packet.getDuration(), counter, false);
+					}
 				}
 			}
 		}
@@ -313,5 +372,16 @@ public class RtmpStreamObserver implements IStreamListener {
 		tag.setTimestamp(tag.getTimestamp() - startTime);
 		// 書き込む
 		write(tag);
+	}
+	public static void main(String[] args) {
+		ByteBuffer buffer = ByteBuffer.allocate(8);
+		buffer.putInt(1);
+		buffer.putInt(2);
+		buffer.flip();
+		System.out.println(buffer.getInt());
+		System.out.println(buffer.getInt());
+		buffer.flip();
+		System.out.println(buffer.getInt());
+		System.out.println(buffer.getInt());
 	}
 }
