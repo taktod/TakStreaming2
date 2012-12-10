@@ -32,6 +32,7 @@ public class Setting {
 	private final Logger logger = LoggerFactory.getLogger(Setting.class);
 	private final static Setting instance = new Setting();
 	private final float duration; // セグメントデータのduration
+	private final int limit;
 	private final String processCommand;
 	private final String path; // 出力パス
 	private final String httpPath; // http
@@ -44,6 +45,7 @@ public class Setting {
 			prop.load(is);
 			userHome = System.getProperty("user.home");
 			duration = Float.parseFloat(prop.getProperty("duration"));
+			limit = Integer.parseInt(prop.getProperty("limit"));
 			path = prop.getProperty("path");
 			// process用のコマンドとその出力のデータをいれておく。
 			processCommand = "java -cp test.jar:lib/netty-3.1.5.GA.jar com.ttProject.process.ProcessEntry ";
@@ -69,6 +71,9 @@ public class Setting {
 	}
 	public float getDuration() {
 		return duration;
+	}
+	public int getLimit() {
+		return limit;
 	}
 	public String getPath() {
 		return path;
