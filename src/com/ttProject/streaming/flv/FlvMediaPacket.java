@@ -251,7 +251,7 @@ public class FlvMediaPacket extends FlvPacket {
 			WritableByteChannel channel = Channels.newChannel(new FileOutputStream(targetFile, append));
 			// 先頭にcrc値 index値をいれておく必要あり。
 			buffer.flip();
-			ByteBuffer header = ByteBuffer.allocate(8);
+			ByteBuffer header = ByteBuffer.allocate(12);
 			header.putInt(buffer.remaining());
 			header.putInt(getManager().getCRC());
 			header.putInt(number);
@@ -266,7 +266,7 @@ public class FlvMediaPacket extends FlvPacket {
 	public ByteBuffer getBufferData(int number) {
 		ByteBuffer buffer = getBuffer(0);
 		buffer.flip();
-		ByteBuffer result = ByteBuffer.allocate(buffer.remaining() + 8);
+		ByteBuffer result = ByteBuffer.allocate(buffer.remaining() + 12);
 		// size
 		result.putInt(buffer.remaining());
 		// crc
