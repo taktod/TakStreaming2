@@ -76,6 +76,8 @@ package com.ttProject.tak.rtmp
 		 * bodyデータをうけとった場合の処理
 		 */
 		public function bodyData(data:ByteArray):void {
+			var size:int = data.readInt();
+			Logger.info(size);
 			if(crc != data.readInt()) {
 				Logger.info("crc is invalid");
 				_tc.close();

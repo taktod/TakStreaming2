@@ -38,7 +38,7 @@ package com.ttProject.tak.http
 		private var loadIndex:int;   // flfFile上の先頭index
 		private var passedIndex:int; // 最終処理index
 		// timer関連
-		private var interval:int = 200;
+		private var interval:int = 400;
 		private var timer:Timer = null;
 		/**
 		 * コンストラクタ
@@ -57,6 +57,7 @@ package com.ttProject.tak.http
 			flmFiles = [];
 			var lines:Array = data.split("\n");
 			var resetFlg:Boolean = false;
+			Logger.info(data);
 			// TODO 先頭が#FLF_EXTであることを確認する。
 			for(var i:int = 0;i <lines.length;i ++) {
 				var line:String = lines[i];
@@ -177,6 +178,7 @@ package com.ttProject.tak.http
 		private function loadMediaDetail():void {
 			passedIndex ++;
 			downloadBinary(flmFiles[passedIndex - loadIndex]["file"], function(data:ByteArray):void{
+				var size:int = data.readInt();
 				if(crc != data.readInt()) {
 					Logger.info("crc is invalid");
 					return;
