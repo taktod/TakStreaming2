@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   initialize="init();" width="647" height="511">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ttProject.info.Data;
+			import com.ttProject.info.Logger;
+			import com.ttProject.tak.TakStreamingFactory;
+			private var netStream:NetStream;
+			private var volume:Number;
+			protected function init():void {
+				netStream = null;
+				volume = 0;
+				Logger.setup(logArea);
+				Logger.info("no resetSeekVersion");
+				Data.setup(data);
+				Data.update(null);
+				var timer:Timer = new Timer(100);
+				timer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void {
+					Data.update(netStream);
+				});
+				timer.start();
+				var ba:ByteArray = new ByteArray();
+				var ba2:ByteArray = new ByteArray();
+				ba.writeInt(1);
+				ba.writeInt(2);
+				ba.writeInt(3);
+				ba.writeInt(4);
+				ba.position = 4;
+				ba2.writeInt(5);
+				ba2.writeInt(6);
+				ba2.writeInt(7);
+				ba2.writeInt(8);
+				ba.readBytes(ba2, 4, 4);
+				Logger.info("a" + ba.length);
+				Logger.info("a" + ba.readInt());
+				Logger.info("b" + ba2.length);
+				Logger.info("b" + ba2.position);
+				ba2.position = 4;
+				Logger.info("b" + ba2.readInt());
+			}
+			protected function play():void {
+				try {
+					netStream = TakStreamingFactory.getStream(original.text, stream.text, p2p.text, subp2p.text);
+					uiComp.addChild(TakStreamingFactory.getVideo());
+					if(netStream != null) {
+						Logger.info("開始します。");
+						netStream.play(stream.text);
+						netStream.soundTransform = new SoundTransform(volume);
+					}
+				}
+				catch(e:Error) {
+					Logger.info("playError:" + e.toString());
+				}
+			}
+			protected function slider(val:String):void {
+				volume = Number(val) / 10;
+				if(netStream != null) {
+					netStream.soundTransform = new SoundTransform(volume);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:Canvas x="10" y="10">
+		<mx:UIComponent id="uiComp" />
+	</mx:Canvas>
+	<mx:DataGrid x="368" y="10" width="262" height="353" id="data">
+		<mx:columns>
+			<mx:DataGridColumn headerText="name" dataField="name" resizable="false" width="80"/>
+			<mx:DataGridColumn headerText="value" dataField="value"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<s:VSlider x="354" y="263" dataTipFormatFunction="slider"/>
+	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="true" contentBackgroundAlpha="0.25" id="logArea"/>
+	<s:TextInput  x="158" y="371" width="282" id="original" text="http://49.212.39.17/tak/test.flf"/>
+	<s:TextInput  x="158" y="401" width="282" id="p2p" text="rtmfp://49.212.39.17:6935/"/>
+	<s:TextInput  x="158" y="431" width="282" id="subp2p" text="rtmfp://49.212.39.17:6935/"/>
+	<s:TextInput  x="443" y="371" width="114" id="stream" text="test"/>
+	<s:Button  x="560" y="372" label="play" click="play()"/>
+	<s:Label x="67" y="377" text="originalStream"/>
+	<s:Label x="75" y="407" text="p2pNetwork"/>
+	<s:Label x="65" y="437" text="subP2pNetwork"/>
+</s:Application>

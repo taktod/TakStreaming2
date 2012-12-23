@@ -24,13 +24,6 @@ package com.ttProject.tak.core
 		private var lastVideoTimestamp:uint;
 		private var lastAudioTimestamp:uint;
 
-		// 拡張データ
-		private var _crc:int; // 動作のCRC値、ずれるデータがきたときには再生できない。
-		protected function set crc(val:int):void {_crc = val;}
-		protected function get crc():int         {return _crc;}
-		private var _index:int; // index番号、再生する順番について保持している。
-		protected function set index(val:int):void {_index = val;}
-		protected function get index():int         {return _index;}
 		// haderデータ保持
 		private var headerData:ByteArray;
 		// プロパティーとなるデータ
@@ -97,9 +90,6 @@ package com.ttProject.tak.core
 			lastAudioTimestamp = 0;
 			lastVideoTimestamp = 0;
 
-			_index = -1;
-			_crc   = 0;
-
 			headerData = null;
 
 			_client         = null;
@@ -143,8 +133,6 @@ package com.ttProject.tak.core
 				ns.bufferTime = _bufferTime;
 			}
 			ns.play(null);
-			_crc   = 0;
-			_index = -1;
 			startPosition = -1;
 			lastAudioTimestamp = 0;
 			lastVideoTimestamp = 0;
@@ -169,7 +157,6 @@ package com.ttProject.tak.core
 		protected function appendHeaderBytes(data:ByteArray):void {
 			if(initializeFlg && ns != null) {
 				startPosition = -1;
-				_index = -1;
 				lastAudioTimestamp = 0;
 				lastVideoTimestamp = 0;
 				headerData = data;

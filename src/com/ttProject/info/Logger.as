@@ -13,9 +13,9 @@ package com.ttProject.info
 				return;
 			}
 			field.text += data.toString() + "\r\n";
-			if(field.text.split("\n").length > 24) {
-				field.text = data.toString() + "\r\n";
-			}
+//			if(field.text.split("\n").length > 40) {
+//				field.text = data.toString() + "\r\n";
+//			}
 		}
 	}
 }

@@ -1,8 +1,7 @@
 package com.ttProject.tak.http
 {
 	import com.ttProject.info.Logger;
-	import com.ttProject.tak.core.TakEvent;
-	import com.ttProject.tak.core.TakStream;
+	import com.ttProject.tak.rtmfp.RtmfpTakStream;
 	
 	import flash.events.Event;
 	import flash.events.IOErrorEvent;
@@ -11,26 +10,13 @@ package com.ttProject.tak.http
 	import flash.net.URLLoader;
 	import flash.net.URLLoaderDataFormat;
 	import flash.net.URLRequest;
-	import flash.net.URLRequestHeader;
 	import flash.utils.ByteArray;
 	import flash.utils.Timer;
 	
-	import mx.core.RuntimeDPIProvider;
-	
 	/**
-	 * 指定したサーバーから、指定したURLのデータをダウンロードしてストリーミングを構築します。
-	 * ・シーケンスダウンロード
-	 * 順番にデータをダウンロードするモード
-	 * ・スポットダウンロード(まだつくってない。)
-	 * 特定のデータのみダウンロードして取り込むモード
-	 * スポットダウンロードは中途で別のプロトコルでダウンロードするのもあり。
-	 * http以外はスポットダウンロードする場合はあらかじめコネクションが必要
-	 * 
-	 * flf:flvのメディアデータのリスト
-	 * flh:flvのヘッダデータ
-	 * flm:flvのメディアデータ
+	 * httpからデータをうけとる動作
 	 */
-	public class HttpTakStream extends TakStream {
+	public class HttpTakStream extends RtmfpTakStream {
 		private var loadingFlg:Boolean; // 処理中管理フラグ
 		private var flfFile:String; // flfFile(リロードを繰り返すindexデータ)
 		private var flhFile:String; // flhFile(更新時に読み込みheaderファイル)
@@ -40,11 +26,8 @@ package com.ttProject.tak.http
 		// timer関連
 		private var interval:int = 400;
 		private var timer:Timer = null;
-		/**
-		 * コンストラクタ
-		 */
-		public function HttpTakStream(url:String) {
-			super();
+		public function HttpTakStream(url:String, stream:String, p2p:String, subp2p:String) {
+			super(stream, p2p, subp2p);
 			this.flfFile = url;
 			this.loadingFlg = false;
 			this.flmFiles = [];
@@ -57,7 +40,10 @@ package com.ttProject.tak.http
 			flmFiles = [];
 			var lines:Array = data.split("\n");
 			var resetFlg:Boolean = false;
-			Logger.info(data);
+			if(data.length < 20) {
+				Logger.info("読み込みトライ");
+				Logger.info(data);
+			}
 			// TODO 先頭が#FLF_EXTであることを確認する。
 			for(var i:int = 0;i <lines.length;i ++) {
 				var line:String = lines[i];
@@ -120,11 +106,12 @@ package com.ttProject.tak.http
 				// 中身を解析する。
 				analizeFlfFile(data);
 				var needReset:Boolean = false;
-
+				
 				// 連続しているデータをうけとっているか確認
 				if(passedIndex == 0 || passedIndex + 1 < loadIndex || passedIndex > loadIndex + flmFiles.length) {
 					// 2パケット分delayを取らせる
-					passedIndex = loadIndex + flmFiles.length - 2; // 最終indexの２つ前から(2つのファイルを読み込む)
+//					passedIndex = loadIndex + flmFiles.length - 2; // 最終indexの２つ前から(2つのファイルを読み込む)
+					passedIndex = loadIndex + flmFiles.length - 3; // 最終indexの３つ前から(2つのファイルを読み込む)
 					needReset = true;
 				}
 				// 現在のpassedIndex以降にresetがあるか確認して、そこまでpassedIndexをすすめる。
@@ -158,11 +145,8 @@ package com.ttProject.tak.http
 			if(flmFiles[(passedIndex - loadIndex + 1)]["resetFlg"]) {
 				// resetするのでヘッダーデータを更新する。
 				downloadBinary(flhFile, function(data:ByteArray):void{
-					crc = data.readInt();
-					setup(); // ストリームの再生成を強制する。
-					var header:ByteArray = new ByteArray();
-					data.readBytes(header);
-					appendHeaderBytes(header);
+					// TODO 何番のindexでリセットさせるという情報を持つ必要がある。
+					appendFlhData(data);
 					// メディア実体を読み込む
 					loadMediaDetail();
 				});
@@ -177,14 +161,14 @@ package com.ttProject.tak.http
 		 */
 		private function loadMediaDetail():void {
 			passedIndex ++;
-			downloadBinary(flmFiles[passedIndex - loadIndex]["file"], function(data:ByteArray):void{
-				var size:int = data.readInt();
-				if(crc != data.readInt()) {
-					Logger.info("crc is invalid");
-					return;
+			var flmFile:Object = flmFiles[passedIndex - loadIndex];
+			downloadBinary(flmFile["file"], function(data:ByteArray):void{
+				try {
+					appendFlmData(data, flmFile["resetFlg"]);
 				}
-				var num:int = data.readInt(); // セグメント番号
-				appendAggregateBytes(data);
+				catch(e:Error) {
+					Logger.info("reset:" + e.toString());
+				}
 				loadSegmentData();
 			});
 		}
@@ -215,8 +199,10 @@ package com.ttProject.tak.http
 		 */
 		private function download(loader:URLLoader, target:String):void {
 			loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(event:SecurityErrorEvent):void {
+				Logger.info("securityエラー発生");
 			});
 			loader.addEventListener(IOErrorEvent.IO_ERROR, function(event:IOErrorEvent):void {
+				Logger.info("IO_ERRORエラー発生");
 			});
 			try {
 				var request:URLRequest = new URLRequest(target + "?" + (new Date()).getTime());
@@ -225,6 +211,9 @@ package com.ttProject.tak.http
 			catch(e:Error) {
 				Logger.info("error on downloadData:" + e.toString());
 			}
+		}
+		override protected function test():void {
+			Logger.info("http");
 		}
 	}
 }

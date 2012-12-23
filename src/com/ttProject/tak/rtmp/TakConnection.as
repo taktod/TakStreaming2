@@ -11,11 +11,11 @@ package com.ttProject.tak.rtmp
 	 * 独自命令を処理させるためのrtmp用コネクション
 	 */
 	public class TakConnection extends NetConnection {
-		private var _ts:RtmpTakStream;
+		private var _ts:RtmpTakStream3;
 		/**
 		 * コンストラクタ
 		 */
-		public function TakConnection(stream:RtmpTakStream) {
+		public function TakConnection(stream:RtmpTakStream3) {
 			super();
 			_ts = stream;
 		}
