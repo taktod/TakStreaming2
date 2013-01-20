@@ -400,7 +400,7 @@ class FlmList {
 	 * 開始する場合に推奨される開始位置の取得
 	 */
 	public function getDefaultStartAbsPos():int {
-		var index:int = endIndex - 1; // 適当な開始位置を指定する。
+		var index:int = endIndex; // 適当な開始位置を指定する。
 		if(index < startIndex) {
 			index = startIndex;
 		}
