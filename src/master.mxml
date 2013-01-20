@@ -35,7 +35,7 @@
 				// メディアソースを設定
 				TakStreamingFactory.addSource("http://49.212.39.17/tak/test.flf", "test");
 				// データ提供まわりを実装
-				TakStreamingFactory.setSupply("rtmfp://49.212.39.17:6935/", "test");
+				TakStreamingFactory.setSupply("rtmfp:", "test");
 				// データを設定しておく。
 				netStream = TakStreamingFactory.getStream();
 				video = TakStreamingFactory.getVideo();

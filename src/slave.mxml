@@ -35,9 +35,9 @@
 				// メディアソースを設定(http)
 				TakStreamingFactory.addSource("http://49.212.39.17/tak/test.flf", "test");
 				// メディアソースを設定(p2p)
-				TakStreamingFactory.addSource("rtmfp://49.212.39.17:6935/", "test");
+				TakStreamingFactory.addSource("rtmfp:", "test");
 				// データ提供先も設定(p2p)
-				TakStreamingFactory.setSupply("rtmfp://49.212.39.17:6935/", "test");
+				TakStreamingFactory.setSupply("rtmfp:", "test");
 				// データ設定しておく
 				netStream = TakStreamingFactory.getStream();
 				video = TakStreamingFactory.getVideo();
