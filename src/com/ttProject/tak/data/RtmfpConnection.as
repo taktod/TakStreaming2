@@ -96,7 +96,7 @@ package com.ttProject.tak.data
 					var name:String = (new TokenGenerator()).getRandomText();
 					// 相手がみつかった、次の接続をうけいれるかは、タイマーで監視することにする。
 					Logger.info("接続相手のrequestをうけとった");
-					if(supplyStream1 == null) {
+					if(supplyStream1 == null && dataManager.supplyCount != 2) {
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
 							supplyStream1 = new P2pSupplyStream(name, nc, dataManager);
@@ -106,7 +106,7 @@ package com.ttProject.tak.data
 							Logger.info("error:ee:" + e.message);
 						}
 					}
-					else if(supplyStream2 == null) {
+					else if(supplyStream2 == null && dataManager.supplyCount != 2) {
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
 							supplyStream2 = new P2pSupplyStream(name, nc, dataManager);
@@ -207,7 +207,7 @@ package com.ttProject.tak.data
 		 */
 		private function supplyQueue():void {
 			clearQueue();
-			if(supplyStream1 == null || supplyStream2 == null) {
+			if(dataManager.supplyCount < 2 && (supplyStream1 == null || supplyStream2 == null)) {
 				ng.addHaveObjects(1, 1);
 			}
 		}

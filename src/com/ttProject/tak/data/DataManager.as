@@ -29,6 +29,9 @@ package com.ttProject.tak.data
 		private var playedIndex:int; // 動作済みindexデータ保持
 		// 元になるtakStreamオブジェクト
 		private var stream:TakStream;
+		public function get supplyCount():int {
+			return supply.length;
+		}
 
 		/**
 		 * コンストラクタ
@@ -209,21 +212,26 @@ package com.ttProject.tak.data
 		 * タイマー処理
 		 */
 		private function onTimerEvent(event:TimerEvent):void {
-			// GUI処理だが、いまだけここにいれておく。
-			var length:Number = stream.bufferLength;
-			if(length == -1 || length > 1) {
-				// 開始前もしくはデータがまだのこっている場合は、追記読み込み補助は実施しない
-				return;
+			try {
+				// GUI処理だが、いまだけここにいれておく。
+				var length:Number = stream.bufferLength;
+				if(length == -1 || length > 1) {
+					// 開始前もしくはデータがまだのこっている場合は、追記読み込み補助は実施しない
+					return;
+				}
+				// データの補完を手配してみる。
+				var httpStream:HttpStream = source.getSource("http") as HttpStream;
+				if(httpStream == null) {
+					// 補完可能なストリームが存在しない。
+					start();
+					return;
+				}
+				// データを補完依頼してみる。
+				httpStream.spot(playedIndex + 1);
 			}
-			// データの補完を手配してみる。
-			var httpStream:HttpStream = source.getSource("http") as HttpStream;
-			if(httpStream == null) {
-				// 補完可能なストリームが存在しない。
-				start();
-				return;
+			catch(e:Error) {
+				Logger.error("onTimerEvent(DataManager):" + e.message);
 			}
-			// データを補完依頼してみる。
-			httpStream.spot(playedIndex + 1);
 		}
 	}
 }
@@ -402,6 +410,9 @@ class SourceHolder {
  */
 class SupplyHolder {
 	private var supply:Array;
+	public function get length():int {
+		return supply.length;
+	}
 	public function SupplyHolder() {
 		supply = [];
 	}
