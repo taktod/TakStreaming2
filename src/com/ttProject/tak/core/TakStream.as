@@ -39,7 +39,7 @@ package com.ttProject.tak.core
 		/**
 		 * 供給先の設定
 		 */
-		public function setSupply(url:String, name:String):void {
+		public function addSupply(url:String, name:String):void {
 			dataManager.addSupply(url, name);
 		}
 		/**

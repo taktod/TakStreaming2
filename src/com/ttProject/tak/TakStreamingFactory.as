@@ -37,8 +37,8 @@ package com.ttProject.tak
 		/**
 		 * 提供先を設定
 		 */
-		public static function setSupply(url:String, name:String, key:String = null):void {
-			getData(key).stream.setSupply(url, name);
+		public static function addSupply(url:String, name:String, key:String = null):void {
+			getData(key).stream.addSupply(url, name);
 		}
 		/**
 		 * 内部処理補助

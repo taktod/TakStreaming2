@@ -1,6 +1,5 @@
 package com.ttProject.tak.data
 {
-	import com.ttProject.info.Data;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.core.TakStream;
 	import com.ttProject.tak.source.HttpStream;
@@ -8,7 +7,6 @@ package com.ttProject.tak.data
 	import com.ttProject.tak.supply.ISupplyStream;
 	import com.ttProject.tak.supply.P2pSupplyStream;
 	
-	import flash.events.EventDispatcher;
 	import flash.events.TimerEvent;
 	import flash.utils.ByteArray;
 	import flash.utils.Timer;
