@@ -2,8 +2,7 @@ package com.ttProject.tak.supply
 {
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
-	
-	import flash.events.TimerEvent;
+
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
 	import flash.utils.ByteArray;
@@ -65,17 +64,17 @@ package com.ttProject.tak.supply
 			};
 			sendStream.publish(name);
 			lastAccess = (new Date()).time;
-			// このままだとpingでいないと判定されるのか・・・
-			dataManager.addEventListener(TimerEvent.TIMER, onTimerEvent);
 		}
 		/**
 		 * タイマーイベント動作
 		 */
-		private function onTimerEvent(e:TimerEvent):void {
+		public function onTimerEvent():void {
 			try {
 				counter ++;
 				if(counter > 10) {
-					sendStream.send("onPing", null);
+					if(sendStream != null) {
+						sendStream.send("onPing", null);
+					}
 					counter = 0;
 				}
 			}
@@ -93,9 +92,6 @@ package com.ttProject.tak.supply
 		 * 閉じる動作
 		 */
 		private function close():void {
-			if(dataManager != null) {
-				dataManager.removeEventListener(TimerEvent.TIMER, onTimerEvent);
-			}
 			if(sendStream != null) {
 				sendStream.close();
 				sendStream = null;

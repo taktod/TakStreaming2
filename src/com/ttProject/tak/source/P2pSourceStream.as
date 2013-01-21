@@ -3,7 +3,6 @@ package com.ttProject.tak.source
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	
-	import flash.events.TimerEvent;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
 	import flash.utils.ByteArray;
@@ -74,22 +73,20 @@ package com.ttProject.tak.source
 		public function start(...paramter):void {
 			recvStream.play(name);
 			lastAccess = (new Date()).time;
-			
-			// 相手にpingを飛ばします。
-			dataManager.addEventListener(TimerEvent.TIMER, onTimerEvent);
 		}
 		/**
 		 * タイマー動作
 		 * ping実行
 		 */
-		private function onTimerEvent(e:TimerEvent):void {
+		public function onTimerEvent():void {
 			try {
 				counter ++;
 				if(counter > 10) {
-					var ns:NetStream = new NetStream(nc, nodeId);
-					ns.play(name);
-					ns.close();
-
+					if(nc != null && nc.connected) {
+						var ns:NetStream = new NetStream(nc, nodeId);
+						ns.play(name);
+						ns.close();
+					}
 					counter = 0;
 				}
 			}
@@ -107,10 +104,6 @@ package com.ttProject.tak.source
 		 * 停止させる。
 		 */
 		private function close():void {
-			// イベントをとりはずす
-			if(dataManager != null) {
-				dataManager.removeEventListener(TimerEvent.TIMER, onTimerEvent);
-			}
 			if(recvStream != null) {
 				recvStream.close();
 				recvStream = null;

@@ -6,12 +6,10 @@ package com.ttProject.tak.source
 	import flash.events.Event;
 	import flash.events.IOErrorEvent;
 	import flash.events.SecurityErrorEvent;
-	import flash.events.TimerEvent;
 	import flash.net.URLLoader;
 	import flash.net.URLLoaderDataFormat;
 	import flash.net.URLRequest;
 	import flash.utils.ByteArray;
-	import flash.utils.Timer;
 
 	/**
 	 * http経由でデータをダウンロードします。
@@ -33,7 +31,7 @@ package com.ttProject.tak.source
 		private var flfFile:String; // 処理用flfファイル設定
 		private var flhFile:String; // flhFile(更新時に読み込みheaderファイル)
 		private var flmList:FlmList;
-
+		
 		private var passedIndex:int; // 最終処理index
 		private var _target:Boolean;
 		public function get isTarget():Boolean {
@@ -60,9 +58,7 @@ package com.ttProject.tak.source
 		 * 動作を停止させます。
 		 */
 		public function stop():void {
-			if(dataManager != null) {
-				dataManager.removeEventListener(TimerEvent.TIMER, onTimerDataLoadEvent);
-			}
+			isSequence = false;
 		}
 		/**
 		 * ダウンロードを開始する
@@ -70,7 +66,7 @@ package com.ttProject.tak.source
 		 */
 		public function start(... parameter):void {
 			stop(); // いったん停止してから開始します。
-			this.dataManager.addEventListener(TimerEvent.TIMER, onTimerDataLoadEvent);
+//			this.dataManager.addEventListener(TimerEvent.TIMER, onTimerDataLoadEvent);
 			var startIndex:int = parameter[0];
 			isSequence  = true;
 			targetIndex = startIndex;
@@ -109,8 +105,8 @@ package com.ttProject.tak.source
 		/**
 		 * タイマーで動作するデータのダウンロード処理
 		 */
-		private function onTimerDataLoadEvent(event:TimerEvent):void {
-			if(inTask) {
+		public function onTimerDataLoadEvent():void {
+			if(inTask || !isSequence) {
 				return; // タスク中なら処理しない
 			}
 			inTask = true; // タスク中に変更する。

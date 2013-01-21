@@ -130,7 +130,7 @@ package com.ttProject.tak.data
 						sourceStream1 = new P2pSourceStream(data[0], data[1], nc, dataManager);
 						Logger.info("sourcestream1決定しました。");
 						// データの取得元のsourceStreamを設定しておく。
-						dataManager.addSourceStream("rtmfp", sourceStream1);
+						dataManager.addSourceStream("rtmfp:" + url, sourceStream1);
 					}
 					clearQueue();
 					break;
@@ -161,7 +161,6 @@ package com.ttProject.tak.data
 			// 動作コントロールに必要な処理を実行しておく。
 			var d:Date = new Date();
 			waitCount = 20 + d.time % 50;
-			dataManager.addEventListener(TimerEvent.TIMER, onTimerEvent);
 		}
 		/**
 		 * 切断されてしまったコネクションを復帰させる。
@@ -190,9 +189,6 @@ package com.ttProject.tak.data
 		 * 全接続をすてて停止する。
 		 */
 		public function closeConnection():void {
-			if(dataManager != null) {
-				dataManager.removeEventListener(TimerEvent.TIMER, onTimerEvent);
-			}
 			if(ng != null) {
 				ng.close();
 				ng = null;
@@ -271,7 +267,7 @@ package com.ttProject.tak.data
 		/**
 		 * 一定時間ごとに呼び出される動作確認
 		 */
-		private function onTimerEvent(event:TimerEvent):void {
+		public function onTimerEvent():void {
 			try {
 				if(nc == null || !nc.connected) {
 					return;

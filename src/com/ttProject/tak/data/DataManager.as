@@ -106,7 +106,7 @@ package com.ttProject.tak.data
 		 * データ元となるストリームを追加する。
 		 */
 		public function addSourceStream(name:String, stream:ISourceStream):void {
-			if(name == "rtmfp") {
+			if(name.indexOf("rtmfp") == 0) {
 				// rtmfpの接続がきました。
 				Logger.info("あたらしい接続がきました。rtmfp");
 				// いままでつかっていたストリームは破棄する。
@@ -211,6 +211,15 @@ package com.ttProject.tak.data
 		 */
 		private function onTimerEvent(event:TimerEvent):void {
 			try {
+				try {
+					source.timerEvent();
+					supply.timerEvent();
+					rtmfp.timerEvent();
+				}
+				catch(e:Error) {
+					Logger.error("他の動作を実行したらエラーでた。:" + e.message);
+				}
+				// 他のプログラムのeventを実行してみる。
 				// GUI処理だが、いまだけここにいれておく。
 				var length:Number = stream.bufferLength;
 				if(length == -1 || length > 1) {
@@ -237,8 +246,11 @@ package com.ttProject.tak.data
 import com.ttProject.tak.Logger;
 import com.ttProject.tak.data.DataManager;
 import com.ttProject.tak.data.RtmfpConnection;
+import com.ttProject.tak.source.HttpStream;
 import com.ttProject.tak.source.ISourceStream;
+import com.ttProject.tak.source.P2pSourceStream;
 import com.ttProject.tak.supply.ISupplyStream;
+import com.ttProject.tak.supply.P2pSupplyStream;
 
 import flash.utils.ByteArray;
 
@@ -400,6 +412,17 @@ class SourceHolder {
 	public function getSource(name:String):ISourceStream {
 		return source[name];
 	}
+	public function timerEvent():void {
+		for(var key:* in source) {
+			var stream:* = source[key];
+			if(stream is HttpStream) {
+				(stream as HttpStream).onTimerDataLoadEvent();
+			}
+			else if(stream is P2pSourceStream) {
+				(stream as P2pSourceStream).onTimerEvent();
+			}
+		} 
+	}
 }
 
 /**
@@ -416,6 +439,11 @@ class SupplyHolder {
 	}
 	public function addSupply(stream:ISupplyStream):void {
 		supply.push(stream);
+	}
+	public function timerEvent():void {
+		for(var i:int = 0;i < supply.length;i ++) {
+			(supply[i] as P2pSupplyStream).onTimerEvent();
+		}
 	}
 	/**
 	 * flmデータを送信手配する
@@ -533,6 +561,11 @@ class RtmfpHolder {
 		startFlg = false;
 		for(var key:* in rtmfp) {
 			(rtmfp[key] as RtmfpConnection).closeConnection();
+		}
+	}
+	public function timerEvent():void {
+		for(var key:* in rtmfp) {
+			(rtmfp[key] as RtmfpConnection).onTimerEvent();
 		}
 	}
 }
