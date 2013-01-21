@@ -3,13 +3,10 @@ package com.ttProject.tak.source
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	
-	import flash.events.NetStatusEvent;
 	import flash.events.TimerEvent;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
-	import flash.net.sendToURL;
 	import flash.utils.ByteArray;
-	import flash.utils.Timer;
 
 	/**
 	 * p2pをsourceとするときのベースとなる動作
@@ -86,13 +83,18 @@ package com.ttProject.tak.source
 		 * ping実行
 		 */
 		private function onTimerEvent(e:TimerEvent):void {
-			counter ++;
-			if(counter > 10) {
-				var ns:NetStream = new NetStream(nc, nodeId);
-				ns.play(name);
-				ns.close();
+			try {
+				counter ++;
+				if(counter > 10) {
+					var ns:NetStream = new NetStream(nc, nodeId);
+					ns.play(name);
+					ns.close();
 
-				counter = 0;
+					counter = 0;
+				}
+			}
+			catch(e:Error) {
+				Logger.error("onTimerEvent(P2pSourceStream):" + e.message);
 			}
 		}
 		/**

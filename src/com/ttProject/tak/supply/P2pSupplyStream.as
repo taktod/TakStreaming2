@@ -3,13 +3,10 @@ package com.ttProject.tak.supply
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	
-	import flash.events.Event;
-	import flash.events.NetStatusEvent;
 	import flash.events.TimerEvent;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
 	import flash.utils.ByteArray;
-	import flash.utils.Timer;
 
 	/**
 	 * p2pのsupplyとするときのベースとなる動作
@@ -71,13 +68,24 @@ package com.ttProject.tak.supply
 			// このままだとpingでいないと判定されるのか・・・
 			dataManager.addEventListener(TimerEvent.TIMER, onTimerEvent);
 		}
+		/**
+		 * タイマーイベント動作
+		 */
 		private function onTimerEvent(e:TimerEvent):void {
-			counter ++;
-			if(counter > 10) {
-				sendStream.send("onPing", null);
-				counter = 0;
+			try {
+				counter ++;
+				if(counter > 10) {
+					sendStream.send("onPing", null);
+					counter = 0;
+				}
+			}
+			catch(e:Error) {
+				Logger.error("onTimerEvent(P2pSupplyStream):" + e.message);
 			}
 		}
+		/**
+		 * 停止処理
+		 */
 		public function stop():void {
 			close();
 		}

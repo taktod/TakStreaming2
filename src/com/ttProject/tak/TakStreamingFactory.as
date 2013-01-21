@@ -3,6 +3,7 @@ package com.ttProject.tak
 	import com.ttProject.tak.core.TakStream;
 	import com.ttProject.tak.core.TakVideo;
 	
+	import flash.display.Sprite;
 	import flash.media.Video;
 	import flash.net.NetStream;
 
@@ -11,7 +12,7 @@ package com.ttProject.tak
 	 * 
 	 * とりあえずネットワーク追加はあるけど、削除とリスト参照は未実装
 	 */
-	public class TakStreamingFactory
+	public class TakStreamingFactory extends Sprite
 	{
 		// 複数データを保持できるようにしておく。
 		private static var list:Object = {};

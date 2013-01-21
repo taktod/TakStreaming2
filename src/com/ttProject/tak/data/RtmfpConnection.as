@@ -144,8 +144,10 @@ package com.ttProject.tak.data
 		 */
 		private function connectGroup():void {
 			var groupSpec:GroupSpecifier = new GroupSpecifier(name);
-			groupSpec.ipMulticastMemberUpdatesEnabled = true;
-			groupSpec.addIPMulticastAddress("224.0.0.255:30000");
+			if(url == "rtmfp:") {
+				groupSpec.ipMulticastMemberUpdatesEnabled = true;
+				groupSpec.addIPMulticastAddress("224.0.0.255:30000");
+			}
 			groupSpec.objectReplicationEnabled = true;
 			ng = new NetGroup(nc, groupSpec.groupspecWithAuthorizations());
 			ng.addEventListener(NetStatusEvent.NET_STATUS, onNetStatusEvent);
@@ -172,10 +174,15 @@ package com.ttProject.tak.data
 			// 一時的なタイマーなので、許可しておく。
 			var timer:Timer = new Timer(4.0, 1);
 			timer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void {
-				// 確認を実行して接続できていなかったら再接続を実施する。
-				if(!nc.connected) {
-					// 接続できていない場合は再トライする。(接続可能になるまでリトライしておく。)
-					resumeConnection();
+				try {
+					// 確認を実行して接続できていなかったら再接続を実施する。
+					if(!nc.connected) {
+						// 接続できていない場合は再トライする。(接続可能になるまでリトライしておく。)
+						resumeConnection();
+					}
+				}
+				catch(e:Error) {
+					Logger.error("function(TimerEvent)(RtmfpConnection):" + e.message);
 				}
 			});
 		}
@@ -265,30 +272,35 @@ package com.ttProject.tak.data
 		 * 一定時間ごとに呼び出される動作確認
 		 */
 		private function onTimerEvent(event:TimerEvent):void {
-			if(nc == null || !nc.connected) {
-				return;
+			try {
+				if(nc == null || !nc.connected) {
+					return;
+				}
+				counter ++;
+				if(counter < waitCount) {
+					return;
+				}
+				// タイマーで動作を監視しておきます。
+				// 死んでる接続はけしておく。
+				if(sourceStream1 != null && !sourceStream1.connected) {
+					sourceStream1.stop();
+					sourceStream1 = null;
+				}
+				if(supplyStream1 != null && !supplyStream1.connected) {
+					supplyStream1.stop();
+					supplyStream1 = null;
+				}
+				if(supplyStream2 != null && !supplyStream2.connected) {
+					supplyStream2.stop();
+					supplyStream2 = null;
+				}
+				// モードを変更しておく。
+				changeMode();
+				counter = 0;
 			}
-			counter ++;
-			if(counter < waitCount) {
-				return;
+			catch(e:Error) {
+				Logger.error("onTimerEvent(RtmfpConnection):" + e.message);
 			}
-			// タイマーで動作を監視しておきます。
-			// 死んでる接続はけしておく。
-			if(sourceStream1 != null && !sourceStream1.connected) {
-				sourceStream1.stop();
-				sourceStream1 = null;
-			}
-			if(supplyStream1 != null && !supplyStream1.connected) {
-				supplyStream1.stop();
-				supplyStream1 = null;
-			}
-			if(supplyStream2 != null && !supplyStream2.connected) {
-				supplyStream2.stop();
-				supplyStream2 = null;
-			}
-			// モードを変更しておく。
-			changeMode();
-			counter = 0;
 		}
 	}
 }
