@@ -66,7 +66,6 @@ package com.ttProject.tak.source
 		 */
 		public function start(... parameter):void {
 			stop(); // いったん停止してから開始します。
-//			this.dataManager.addEventListener(TimerEvent.TIMER, onTimerDataLoadEvent);
 			var startIndex:int = parameter[0];
 			isSequence  = true;
 			targetIndex = startIndex;

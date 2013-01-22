@@ -34,7 +34,7 @@ package com.ttProject.tak.supply
 			if(sendStream == null) {
 				return false;
 			}
-			return ((new Date()).time - lastAccess) < 3000; // 8秒以上経っている場合は接続していないとして応答する
+			return ((new Date()).time - lastAccess) < 3000; // 3秒以上経っている場合は接続していないとして応答する
 		}
 		/**
 		 * 相手のID
