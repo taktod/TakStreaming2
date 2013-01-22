@@ -110,7 +110,10 @@ package com.ttProject.tak.data
 				// rtmfpの接続がきました。
 				Logger.info("あたらしい接続がきました。rtmfp");
 				// いままでつかっていたストリームは破棄する。
-				source.getSource("http").stop();
+				var httpStream:ISourceStream = source.getSource("http");
+				if(httpStream != null) {
+					httpStream.stop();
+				}
 				// TODO rtmpのことも考慮しておく
 			}
 			source.addSource(name, stream);
@@ -172,6 +175,36 @@ package com.ttProject.tak.data
 						}
 					}
 				}
+				else if(stream.bufferLength < 0.5) {
+					// 今回得たデータがほしかったものでなかったとしても、必要なデータがない場合(どこかでつまっていた場合あきらめてやり直す必要がある。)
+					Logger.info("データがたりなくなったので、もっているデータからやりなおします。");
+					if(flh != null) {
+						// 中途からやり直し
+						stream.setup();
+						stream.appendHeaderBytes(flh.getData());
+						playedIndex = flmList.min - 1;
+						var isAppended:Boolean = false;
+						while(true) {
+							var cacheFlm:FlmData = flmList.get(playedIndex + 1);
+							if(cacheFlm != null) {
+								stream.appendDataBytes(cachedFlm.getData());
+								isAppended = true;
+								playedIndex ++;
+							}
+							else {
+								break;
+							}
+						}
+						if(!isAppended) {
+							// 追記できなかった場合は始めからやり直す。
+							start();
+						}
+					}
+					else {
+						// はじめからやり直し(まぁありえないけど)
+						start();
+					}
+				}
 			}
 		}
 		/**
@@ -230,7 +263,7 @@ package com.ttProject.tak.data
 				var httpStream:HttpStream = source.getSource("http") as HttpStream;
 				if(httpStream == null) {
 					// 補完可能なストリームが存在しない。
-					start();
+//					start();
 					return;
 				}
 				// データを補完依頼してみる。
@@ -259,6 +292,10 @@ import flash.utils.ByteArray;
  */
 class FlmDataHolder {
 	private var _data:Object; // データ保持
+	private var _min:int;
+	public function get min():int {
+		return _min;
+	}
 	/**
 	 * コンストラクタ
 	 */
@@ -299,6 +336,7 @@ class FlmDataHolder {
 				}
 			}
 		}
+		_min = min;
 	}
 }
 
@@ -421,7 +459,7 @@ class SourceHolder {
 			else if(stream is P2pSourceStream) {
 				(stream as P2pSourceStream).onTimerEvent();
 			}
-		} 
+		}
 	}
 }
 
