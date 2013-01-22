@@ -1,8 +1,5 @@
 package com.ttProject.tak
 {
-	import com.ttProject.tak.core.TakStream;
-	import com.ttProject.tak.core.TakVideo;
-	
 	import flash.display.Sprite;
 	import flash.media.Video;
 	import flash.net.NetStream;
