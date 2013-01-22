@@ -145,6 +145,7 @@ package com.ttProject.tak.data
 			// DL済みコンテンツ確認
 			var oldFlm:FlmData = flmList.get(flm.index);
 			if(oldFlm != null) {
+				Logger.info("すでにもっているデータがやってきた。");
 				return;
 			}
 			// あたらしいデータなのでflmListに登録しておく。
@@ -457,7 +458,14 @@ class SourceHolder {
 				(stream as HttpStream).onTimerDataLoadEvent();
 			}
 			else if(stream is P2pSourceStream) {
-				(stream as P2pSourceStream).onTimerEvent();
+				var p2pSourceStream:P2pSourceStream = (stream as P2pSourceStream);
+				if(!p2pSourceStream.connected) {
+					// 接続していないと判定された場合は捨てる
+					delete source[key];
+				}
+				else {
+					p2pSourceStream.onTimerEvent();
+				}
 			}
 		}
 	}
