@@ -30,6 +30,9 @@ package com.ttProject.tak.data
 		public function get supplyCount():int {
 			return supply.length;
 		}
+		public function get hasP2pSource():Boolean {
+			return source.hasP2p;
+		}
 
 		/**
 		 * コンストラクタ
@@ -106,16 +109,6 @@ package com.ttProject.tak.data
 		 * データ元となるストリームを追加する。
 		 */
 		public function addSourceStream(name:String, stream:ISourceStream):void {
-			if(name.indexOf("rtmfp") == 0) {
-				// rtmfpの接続がきました。
-				Logger.info("あたらしい接続がきました。rtmfp");
-				// いままでつかっていたストリームは破棄する。
-				var httpStream:ISourceStream = source.getSource("http");
-				if(httpStream != null) {
-					httpStream.stop();
-				}
-				// TODO rtmpのことも考慮しておく
-			}
 			source.addSource(name, stream);
 		}
 		/**
@@ -227,6 +220,11 @@ package com.ttProject.tak.data
 		 * 接続時の始めのflhデータを受け入れる動作(rtmfpのみ)
 		 */
 		public function setInitFlhData(data:ByteArray):void {
+			// いままでつかっていたストリームは破棄する。
+			var httpStream:ISourceStream = source.getSource("http");
+			if(httpStream != null) {
+				httpStream.stop();
+			}
 			// flhデータが存在していない場合のみ、初期化しておく。
 			if(flh == null || stream.bufferLength < 0.5) {
 				Logger.info("再セットアップします。");
@@ -256,7 +254,7 @@ package com.ttProject.tak.data
 				// 他のプログラムのeventを実行してみる。
 				// GUI処理だが、いまだけここにいれておく。
 				var length:Number = stream.bufferLength;
-				if(length == -1 || length > 1) {
+				if(length == -1 || length > 1 || stream.currentFPS == 0) {
 					// 開始前もしくはデータがまだのこっている場合は、追記読み込み補助は実施しない
 					return;
 				}
@@ -434,6 +432,17 @@ class SourceHolder {
 	// なおp2pだけ複数同時に持てるわけだが・・・どうしよう
 	private var source:Object;
 	/**
+	 * p2pのストリームがあるかどうか
+	 */
+	public function get hasP2p():Boolean {
+		for(var key:* in source) {
+			if(source[key] is P2pSourceStream) {
+				return true;
+			}
+		}
+		return false;
+	}
+	/**
 	 * コンストラクタ
 	 */
 	public function SourceHolder() {
@@ -451,6 +460,9 @@ class SourceHolder {
 	public function getSource(name:String):ISourceStream {
 		return source[name];
 	}
+	/**
+	 * timerの動作
+	 */
 	public function timerEvent():void {
 		for(var key:* in source) {
 			var stream:* = source[key];
@@ -466,6 +478,19 @@ class SourceHolder {
 				else {
 					p2pSourceStream.onTimerEvent();
 				}
+			}
+		}
+	}
+	/**
+	 * p2pのストリームを破棄しておく。
+	 */
+	public function disconnectP2pSourceStream():void {
+		for(var key:* in source) {
+			var stream:* = source[key];
+			if(stream is P2pSourceStream) {
+				var p2pSourceStream:P2pSourceStream = (stream as P2pSourceStream);
+				p2pSourceStream.stop();
+				delete source[key];
 			}
 		}
 	}

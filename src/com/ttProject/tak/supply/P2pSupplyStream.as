@@ -2,7 +2,8 @@ package com.ttProject.tak.supply
 {
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
-
+	import com.ttProject.tak.data.RtmfpConnection;
+	
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
 	import flash.utils.ByteArray;
@@ -21,6 +22,7 @@ package com.ttProject.tak.supply
 		private var lastAccess:Number;
 		private var sendHeader:Boolean;
 		private var dataManager:DataManager;
+		private var rtmfp:RtmfpConnection;
 		private var counter:int = 0;
 
 		public function get isSendHeader():Boolean {
@@ -45,9 +47,10 @@ package com.ttProject.tak.supply
 		/**
 		 * コンストラクタ
 		 */
-		public function P2pSupplyStream(name:String, nc:NetConnection, dataManager:DataManager) {
+		public function P2pSupplyStream(name:String, nc:NetConnection, dataManager:DataManager, rtmfp:RtmfpConnection) {
 			this.name = name;
 			this.dataManager = dataManager;
+			this.rtmfp = rtmfp;
 			sendStream = new NetStream(nc, NetStream.DIRECT_CONNECTIONS);
 			sendStream.client = new Object();
 			// 相手から接続がきたときの処理
@@ -56,6 +59,11 @@ package com.ttProject.tak.supply
 				// 一定時間接続がこなくなったら、死んだものとする。
 				lastAccess = (new Date()).time;
 				if(nodeId == null) {
+					if(subscriber.farID == rtmfp.masterNodeId) {
+						Logger.info("ご先祖さまからの接続なので、拒否");
+						stop();
+						return false;
+					}
 					nodeId = subscriber.farID;
 					Logger.info("supply接続しました。:" + nodeId);
 					sendHeader = false;
@@ -71,7 +79,7 @@ package com.ttProject.tak.supply
 		public function onTimerEvent():void {
 			try {
 				counter ++;
-				if(counter > 10) {
+				if(counter > 5) {
 					if(sendStream != null) {
 						sendStream.send("onPing", null);
 					}
@@ -109,9 +117,13 @@ package com.ttProject.tak.supply
 		public function flh(data:ByteArray):void {
 			sendStream.send("takHeader", data);
 		}
+		public function source(nodeId:String):void {
+			sendStream.send("takSource", nodeId);
+		}
 		public function initFlh(data:ByteArray):void {
 			sendHeader = true;
 			sendStream.send("takInitHeader", data);
+			source(rtmfp.masterNodeId);
 		}
 		public function hashCode():String {
 			return "p2pSupply:" + name;

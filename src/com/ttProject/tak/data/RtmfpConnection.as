@@ -21,6 +21,40 @@ package com.ttProject.tak.data
 	 * とりあえずいまのところ1DL 2UP強制にしてある
 	 */
 	public class RtmfpConnection {
+		private var _masterNodeId:String;
+		public function set masterNodeId(val:String):void {
+			if(val == nc.nearID) {
+				// 自分のIDにもどってきた場合はなにかがおかしい。
+				if(sourceStream1 != null) {
+					sourceStream1.stop();
+					sourceStream1 = null;
+				}
+				_masterNodeId = null;
+				return;
+			}
+			// すでに指定されていたご先祖が再度ご先祖であると伝搬された場合
+			if(_masterNodeId == val) {
+				return;
+			}
+			_masterNodeId = val;
+			if(supplyStream1 != null) {
+				supplyStream1.source(val);
+			}
+			if(supplyStream2 != null) {
+				supplyStream2.source(val);
+			}
+		}
+		public function get masterNodeId():String {
+			// masterNodeIdが決定していない状態で問い合わせがあった場合、自分がご先祖になってる。
+			if(_masterNodeId == null) {
+				if(sourceStream1 != null) {
+					sourceStream1.stop();
+					sourceStream1 = null;
+				}
+				return nc.nearID;
+			}
+			return _masterNodeId;
+		}
 		private var url:String; // 動作URL
 		private var name:String; // group名
 		private var dataManager:DataManager; // データ管理マネージャー
@@ -63,6 +97,7 @@ package com.ttProject.tak.data
 		 * コンストラクタ
 		 */
 		public function RtmfpConnection(url:String, name:String, dataManager:DataManager, sourceFlg:Boolean=false, supplyFlg:Boolean=false) {
+			this._masterNodeId = null;
 			this.url = url;
 			this.name = name;
 			this.nc = null;
@@ -85,7 +120,7 @@ package com.ttProject.tak.data
 				case "NetConnection.Connect.Close":
 				case "NetConnection.Connect.NetworkChanged":
 					// 切断した場合は、あたらしい接続をつくりなおす必要がある。(ただしタイマーでやることにする。)
-					resumeConnection();
+//					resumeConnection();
 					break;
 				case "NetGroup.Connect.Success":
 					// netgroupにつながったら必要な相手をみつける作業にはいる。
@@ -95,11 +130,10 @@ package com.ttProject.tak.data
 					// リクエストをうけとった場合の処理
 					var name:String = (new TokenGenerator()).getRandomText();
 					// 相手がみつかった、次の接続をうけいれるかは、タイマーで監視することにする。
-					Logger.info("接続相手のrequestをうけとった");
 					if(supplyStream1 == null && dataManager.supplyCount != 2) {
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
-							supplyStream1 = new P2pSupplyStream(name, nc, dataManager);
+							supplyStream1 = new P2pSupplyStream(name, nc, dataManager, this);
 							dataManager.addSupplyStream(supplyStream1);
 						}
 						catch(e:Error) {
@@ -109,7 +143,7 @@ package com.ttProject.tak.data
 					else if(supplyStream2 == null && dataManager.supplyCount != 2) {
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
-							supplyStream2 = new P2pSupplyStream(name, nc, dataManager);
+							supplyStream2 = new P2pSupplyStream(name, nc, dataManager, this);
 							dataManager.addSupplyStream(supplyStream2);
 						}
 						catch(e:Error) {
@@ -125,9 +159,9 @@ package com.ttProject.tak.data
 					// 応答をうけとったときの処理
 					Logger.info(event.info.object as String);
 					// 接続がきまったときに次の接続をうけいれるか確認する必要あり
-					if(sourceStream1 == null) {
+					if(sourceStream1 == null && !dataManager.hasP2pSource) {
 						var data:Array = (event.info.object as String).split(":");
-						sourceStream1 = new P2pSourceStream(data[0], data[1], nc, dataManager);
+						sourceStream1 = new P2pSourceStream(data[0], data[1], nc, dataManager, this);
 						Logger.info("sourcestream1決定しました。");
 						// データの取得元のsourceStreamを設定しておく。
 						dataManager.addSourceStream("rtmfp:" + url, sourceStream1);
@@ -212,7 +246,15 @@ package com.ttProject.tak.data
 		 */
 		private function sourceQueue():void {
 			clearQueue();
-			if(sourceStream1 == null) {
+			// 全体でp2pのソースが存在していない場合
+			if(!dataManager.hasP2pSource) {
+				// 仮にsourceStream1がのこっている場合はおかしいので、とめておく。
+				if(sourceStream1 != null) {
+					sourceStream1.stop();
+					sourceStream1 = null;
+				}
+				// ご先祖さまがあるわけがないので、クリアしておく
+				_masterNodeId = null;
 				ng.addWantObjects(1, 1);
 			}
 		}
@@ -235,9 +277,9 @@ package com.ttProject.tak.data
 			// 接続可能モードでも、必要があれば、接続をうけつけなくしたりコントロールしないとだめ。
 			if(supply && source) {
 				// タイマーによる動作の監視を実施する？
-				if(sourceStream1 == null) {
-					// sourceがきまっているのに、再度接続しようとするみたいです。どこかがおかしくなっているっぽい。
-					mode = 2;
+				if(dataManager.hasP2pSource) {
+					// p2pのソースをもっている場合は提供先を探したい。
+					mode = 1;
 				}
 				// 他の接続と共用している可能性があるので、データ転送があってもソース枠があいているなら探す。
 				if(mode == 1) {
@@ -281,6 +323,11 @@ package com.ttProject.tak.data
 				if(sourceStream1 != null && !sourceStream1.connected) {
 					sourceStream1.stop();
 					sourceStream1 = null;
+					// ソースの接続がなくなった場合には、
+					if(_masterNodeId != null) {
+						_masterNodeId = null;
+						Logger.info("ご先祖さまがいなくなった。");
+					}
 				}
 				if(supplyStream1 != null && !supplyStream1.connected) {
 					supplyStream1.stop();

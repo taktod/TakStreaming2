@@ -2,6 +2,7 @@ package com.ttProject.tak.source
 {
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
+	import com.ttProject.tak.data.RtmfpConnection;
 	
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
@@ -21,6 +22,7 @@ package com.ttProject.tak.source
 		private var nodeId:String;
 		private var lastAccess:Number;
 		private var dataManager:DataManager;
+		private var rtmfp:RtmfpConnection;
 		private var counter:int = 0;
 
 		private var _target:Boolean;
@@ -49,7 +51,8 @@ package com.ttProject.tak.source
 		/**
 		 * コンストラクタ
 		 */
-		public function P2pSourceStream(name:String, nodeId:String, nc:NetConnection, dataManager:DataManager) {
+		public function P2pSourceStream(name:String, nodeId:String, nc:NetConnection, dataManager:DataManager, rtmfp:RtmfpConnection) {
+			this.rtmfp = rtmfp;
 			this._target = false;
 			this.dataManager = dataManager;
 			this.name = name;
@@ -64,6 +67,7 @@ package com.ttProject.tak.source
 			recvStream.client.takData = takData;
 			recvStream.client.takHeader = takHeader;
 			recvStream.client.takInitHeader = takInitHeader;
+			recvStream.client.takSource = takSource;
 			start();
 		}
 		/**
@@ -81,7 +85,7 @@ package com.ttProject.tak.source
 		public function onTimerEvent():void {
 			try {
 				counter ++;
-				if(counter > 10) {
+				if(counter > 5) {
 					if(nc != null && nc.connected) {
 						var ns:NetStream = new NetStream(nc, nodeId);
 						ns.play(name);
@@ -114,6 +118,12 @@ package com.ttProject.tak.source
 		}
 		private function takHeader(data:ByteArray):void {
 			dataManager.setFlhData(data);
+		}
+		/**
+		 * p2pのご先祖様の情報をやりとりする命令
+		 */
+		private function takSource(nodeId:String):void {
+			rtmfp.masterNodeId = nodeId; // ご先祖さま登録
 		}
 		/**
 		 * p2pのアクセスで始めに送られてくるheader情報
