@@ -37,7 +37,7 @@
 				// メディアソースを設定(p2p)
 				TakStreamingFactory.addSource("rtmfp:", "test");
 				// データ提供先も設定(p2p)
-				TakStreamingFactory.setSupply("rtmfp:", "test");
+				TakStreamingFactory.addSupply("rtmfp:", "test");
 				// データ設定しておく
 				netStream = TakStreamingFactory.getStream();
 				video = TakStreamingFactory.getVideo();
