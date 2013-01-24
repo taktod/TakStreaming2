@@ -266,7 +266,9 @@ package com.ttProject.tak.data
 					return;
 				}
 				// データを補完依頼してみる。
-				httpStream.spot(playedIndex + 1);
+//				httpStream.spot(playedIndex + 1);
+				Logger.info("httpStreamを復活させる。");
+				httpStream.start(playedIndex + 1);
 			}
 			catch(e:Error) {
 				Logger.error("onTimerEvent(DataManager):" + e.message);
