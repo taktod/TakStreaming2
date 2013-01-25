@@ -18,6 +18,7 @@ package com.ttProject.tak.source
 	public class P2pSourceStream implements ISourceStream {
 		private var nc:NetConnection;
 		private var recvStream:NetStream;
+		private var pingStream:NetStream;
 		private var name:String;
 		private var nodeId:String;
 		private var lastAccess:Number;
@@ -68,6 +69,7 @@ package com.ttProject.tak.source
 			recvStream.client.takHeader = takHeader;
 			recvStream.client.takInitHeader = takInitHeader;
 			recvStream.client.takSource = takSource;
+			pingStream = new NetStream(nc, nodeId);
 			start();
 		}
 		/**
@@ -86,10 +88,8 @@ package com.ttProject.tak.source
 			try {
 				counter ++;
 				if(counter > 5) {
-					if(nc != null && nc.connected) {
-						var ns:NetStream = new NetStream(nc, nodeId);
-						ns.play(name);
-						ns.close();
+					if(nc != null && nc.connected && pingStream != null) {
+						pingStream.play(name);
 					}
 					counter = 0;
 				}
@@ -109,8 +109,13 @@ package com.ttProject.tak.source
 		 */
 		private function close():void {
 			if(recvStream != null) {
+				Logger.info("親接続と切れました:" + nodeId);
 				recvStream.close();
 				recvStream = null;
+			}
+			if(pingStream != null) {
+				pingStream.close();
+				pingStream = null;
 			}
 		}
 		private function takData(data:ByteArray):void {
