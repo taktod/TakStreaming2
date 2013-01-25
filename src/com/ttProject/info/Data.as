@@ -1,5 +1,7 @@
 package com.ttProject.info
 {
+	import com.ttProject.tak.core.TakStream;
+	
 	import flash.net.NetStream;
 	
 	import mx.controls.DataGrid;
@@ -30,7 +32,8 @@ package com.ttProject.info
 					{"name":"time",         "value":"-"},
 					{"name":"delay",        "value":"-"},
 					{"name":"audioCodec",   "value":"-"},
-					{"name":"videoCodec",   "value":"-"}
+					{"name":"videoCodec",   "value":"-"},
+					{"name":"source",       "value":"-"}
 				];
 			}
 			else {
@@ -43,7 +46,8 @@ package com.ttProject.info
 					{"name":"time",         "value":ns.time},
 					{"name":"delay",        "value":ns.liveDelay},
 					{"name":"audioCodec",   "value":ns.audioCodec},
-					{"name":"videoCodec",   "value":ns.videoCodec}
+					{"name":"videoCodec",   "value":ns.videoCodec},
+					{"name":"source",       "value":(ns as TakStream).source}
 				];
 			}
 		}
