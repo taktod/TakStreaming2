@@ -92,6 +92,7 @@ package com.ttProject.tak.data
 		private var sourceStream1:P2pSourceStream = null;
 		
 		private var mode:int = 1; // とりあえず、1ならダウンロード調査中 2ならアップロード先受付中
+		private var startFlg:Boolean;
 
 		/**
 		 * コンストラクタ
@@ -106,12 +107,16 @@ package com.ttProject.tak.data
 			this.supplyFlg = supplyFlg;
 			this.dataManager = dataManager;
 			this.counter = 0;
+			this.startFlg = false;
+			
+			// できたらここでコネクトしておきたい。
+			resumeConnection();
 		}
 		/**
 		 * ネット関連のイベント処理
 		 */
 		private function onNetStatusEvent(event:NetStatusEvent):void {
-			Logger.info(event.info.code);
+//			Logger.info(event.info.code);
 			switch(event.info.code) {
 				case "NetConnection.Connect.Success":
 					// 接続成功したら、groupをつくっておく。
@@ -121,8 +126,8 @@ package com.ttProject.tak.data
 				case "NetConnection.Connect.Close":
 				case "NetConnection.Connect.NetworkChanged":
 					// 切断した場合は、あたらしい接続をつくりなおす必要がある。(ただしタイマーでやることにする。)
-//					resumeConnection();
-					Logger.info("ここだろ？");
+					resumeConnection();
+//					Logger.info("ここだろ？");
 					break;
 				case "NetGroup.Connect.Success":
 					// netgroupにつながったら必要な相手をみつける作業にはいる。
@@ -192,17 +197,25 @@ package com.ttProject.tak.data
 		 * 接続を開始する
 		 */
 		public function startConnection():void {
-			resumeConnection();
+//			resumeConnection();
 			
 			// 動作コントロールに必要な処理を実行しておく。
 			var d:Date = new Date();
 			waitCount = 20 + d.time % 50;
+			startFlg = true;
 		}
 		/**
 		 * 切断されてしまったコネクションを復帰させる。
 		 */
 		private function resumeConnection():void {
-			closeConnection();
+			if(ng != null) {
+				ng.close();
+				ng = null;
+			}
+			if(nc != null) {
+				nc.close();
+				nc = null;
+			}
 			nc = new NetConnection;
 			nc.addEventListener(NetStatusEvent.NET_STATUS, onNetStatusEvent);
 			nc.connect(url);
@@ -225,14 +238,17 @@ package com.ttProject.tak.data
 		 * 全接続をすてて停止する。
 		 */
 		public function closeConnection():void {
-			if(ng != null) {
-				ng.close();
-				ng = null;
+			clearQueue();
+			if(sourceStream1 != null) {
+				sourceStream1.stop();
 			}
-			if(nc != null) {
-				nc.close();
-				nc = null;
+			if(supplyStream1 != null) {
+				supplyStream1.stop();
 			}
+			if(supplyStream2 != null) {
+				supplyStream2.stop();
+			}
+			startFlg = false;
 		}
 		/**
 		 * 相手に送ることが可能な状態であることをqueueに出す
@@ -313,7 +329,7 @@ package com.ttProject.tak.data
 		 */
 		public function onTimerEvent():void {
 			try {
-				if(nc == null || !nc.connected) {
+				if(nc == null || !nc.connected || !startFlg) {
 					return;
 				}
 				counter ++;
