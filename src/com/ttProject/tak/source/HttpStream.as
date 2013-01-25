@@ -43,6 +43,7 @@ package com.ttProject.tak.source
 
 		private var dataManager:DataManager;
 		private var inTask:Boolean; // タスク中の場合はtrue
+		private var lastDlTime:Number;
 		/**
 		 * コンストラクタ
 		 */
@@ -59,6 +60,7 @@ package com.ttProject.tak.source
 		 */
 		public function stop():void {
 			isSequence = false;
+			// すでに実行しているダウンロードをキャンセルできるならしたほうがよい
 		}
 		/**
 		 * ダウンロードを開始する
@@ -69,8 +71,11 @@ package com.ttProject.tak.source
 			var startIndex:int = parameter[0];
 			isSequence  = true;
 			targetIndex = startIndex;
-			passedIndex = -1;
+			if(startIndex == -1) {
+				passedIndex = -1;
+			}
 			this.inTask = true; // タスク中に切り替える
+			this.lastDlTime = -1;
 			downloadText(flfFile, function(data:String):void {
 				// 解析しておく。
 				analizeFlfFile(data);
@@ -95,7 +100,11 @@ package com.ttProject.tak.source
 				downloadBinary(flhFile, function(data:ByteArray):void {
 					// flhデータを取得しました。
 					// flhデータを取得することができたので、次の段階にすすむ。
-					dataManager.setFlhData(data);
+					Logger.info("startIndex:" + startIndex);
+					if(startIndex == -1) {
+						// startIndexが-1でなければ、flhはとりあえず見送ってみる
+						dataManager.setFlhData(data);
+					}
 					// flmデータを順番にダウンロードしておく。
 					loadSegment();
 				});
@@ -106,8 +115,16 @@ package com.ttProject.tak.source
 		 */
 		public function onTimerDataLoadEvent():void {
 			if(inTask || !isSequence) {
-				return; // タスク中なら処理しない
+				// task処理中
+				// シーケンスDLではない
+				return;
 			}
+			// 最終DLからある程度経ってから次のどうさにもっていきます。
+			// 数値をあげるとDLすべき回数はへるけど、リアルタイム性が犠牲になります。
+			if(lastDlTime + 1000 > new Date().time) {
+				return;
+			}
+			lastDlTime = new Date().time;
 			inTask = true; // タスク中に変更する。
 			// イベントがきたらダウンロードを実施する。
 			// flfデータをダウンロードする。
@@ -126,8 +143,8 @@ package com.ttProject.tak.source
 				if(flmList.checkNeedRestart(passedIndex)) {
 					// やりなおす必要がある場合はそうする。
 					Logger.info("やりなおす必要がでてきました。");
-					// dataManagerごとやり直しさせる。
-					dataManager.start();
+					flmList.checkInfo(passedIndex);
+					return;
 				}
 				else {
 					if(isLoadMedia) {
@@ -147,22 +164,39 @@ package com.ttProject.tak.source
 			else {
 				isLoadMedia = true;
 				// 普通にDLできる場合はDLする
+//				lastDlTime = new Date().time;
 				if(flmObject.resetFlg) {
+					Logger.info("リセットがついてた");
 					// headerからDLやり直す必要あり。
 					downloadBinary(flhFile, function(data:ByteArray):void {
 						// flhデータを取得することができたので、次の段階にすすむ。
+						Logger.info("resetするよ");
 						dataManager.setFlhData(data);
+						if(dataManager.checkHasData(flmObject.index)) {
+							// すでに対象のデータは保持済み(メインストリームでも発生する可能性があるっぽい。)
+							Logger.info("保持済みのデータのDLを実行しようとした");
+							passedIndex = flmList.getAbsPos(flmObject.index) + 1;
+							loadSegment();
+							return;
+						}
 						downloadBinary(flmObject.file, function(data:ByteArray):void {
-							passedIndex ++;
+							passedIndex = flmList.getAbsPos(flmObject.index) + 1;
 							dataManager.setFlmData(data);
 							loadSegment();
 						});
 					});
 				}
 				else {
+					if(dataManager.checkHasData(flmObject.index)) {
+						// すでに対象のデータは保持済み(メインストリームでも発生する可能性があるっぽい。)
+						Logger.info("保持済みのデータのDLを実行しようとした");
+						passedIndex = flmList.getAbsPos(flmObject.index) + 1;
+						loadSegment();
+						return;
+					}
 					downloadBinary(flmObject.file, function(data:ByteArray):void {
 						dataManager.setFlmData(data);
-						passedIndex ++;
+						passedIndex = flmList.getAbsPos(flmObject.index) + 1;
 						loadSegment();
 					});
 				}
@@ -204,7 +238,8 @@ package com.ttProject.tak.source
 					}
 					else {
 						// flfからデータが取得できなかった場合はどうしようもないのでやり直して再生する方向にもっていく。
-						dataManager.start();
+						Logger.info("flfのデータ取得失敗しました。");
+//						dataManager.start();
 					}
 				});
 			}
@@ -287,11 +322,13 @@ package com.ttProject.tak.source
 		private function download(loader:URLLoader, target:String):void {
 			loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(event:SecurityErrorEvent):void {
 				Logger.info("securityエラー発生");
-				dataManager.start();
+//				dataManager.start();
+				inTask = false;
 			});
 			loader.addEventListener(IOErrorEvent.IO_ERROR, function(event:IOErrorEvent):void {
 				Logger.info("IO_ERRORエラー発生");
-				dataManager.start();
+//				dataManager.start();
+				inTask = false;
 			});
 			try {
 				var request:URLRequest = new URLRequest(target + "?" + (new Date()).getTime());
@@ -299,7 +336,7 @@ package com.ttProject.tak.source
 			}
 			catch(e:Error) {
 				Logger.info("error on downloadData:" + e.toString());
-				dataManager.start();
+//				dataManager.start();
 			}
 		}
 		public function hashCode():String {
@@ -307,7 +344,7 @@ package com.ttProject.tak.source
 		}
 	}
 }
-import com.ttProject.info.Logger;
+import com.ttProject.tak.Logger;
 
 /**
  * 現在flfファイルに記述されているflmDataリスト
@@ -408,8 +445,10 @@ class FlmList {
 	 * 最終インデックスでない場合は、やりなおし
 	 */
 	public function checkNeedRestart(absIndex:int):Boolean {
-		// 最終indexの相対位置 + 1と一致しているか確認。一致していない場合はやりなおすべき。
-		return absIndex != getAbsPos(endIndex) + 1;
+		return absIndex < flfCounter;
+	}
+	public function checkInfo(absIndex:int):void {
+		Logger.info("checkNeedRestart:" + absIndex + ":" + flfCounter);
 	}
 	/**
 	 * 文字列化するためのサポート関数
@@ -454,3 +493,7 @@ class FlmObject {
 		return "{d:" + duration + " f:" + file + " r:" + resetFlg + "}\n";
 	}
 }
+
+/*
+
+*/
