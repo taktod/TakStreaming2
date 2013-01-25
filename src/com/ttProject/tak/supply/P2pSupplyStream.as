@@ -101,6 +101,7 @@ package com.ttProject.tak.supply
 		 */
 		private function close():void {
 			if(sendStream != null) {
+				Logger.info("子接続と切れました。:" + nodeId);
 				sendStream.close();
 				sendStream = null;
 			}
