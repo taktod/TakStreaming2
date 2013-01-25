@@ -273,13 +273,14 @@ package com.ttProject.tak.data
 		 * 信頼できるダウンロードstreamを開始します。
 		 */
 		private function startReliableDLStream():void {
+			// とりあえずp2pは止めます。
+			source.disconnectP2pSourceStream();
 			var httpStream:HttpStream = source.getSource("http") as HttpStream;
 			if(httpStream == null) {
 				return;
 			}
 			stream.source = "http";
 			httpStream.start(playedIndex);
-			source.disconnectP2pSourceStream();
 		}
 		/**
 		 * p2pのダウンロードstreamを開始します。
