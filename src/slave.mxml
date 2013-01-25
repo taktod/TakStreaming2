@@ -50,7 +50,6 @@
 			 * 視聴開始
 			 */
 			protected function play():void {
-				// 視聴開始処理(自動スタートにしてある。)
 				try {
 					netStream.play(null);
 				}

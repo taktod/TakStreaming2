@@ -11,7 +11,9 @@ package com.ttProject.tak.core
 	 * (若干未完成)
 	 */
 	public class TakStream extends BaseStream {
-		private var dataManager:DataManager; // データ完了
+		// データ管理
+		private var dataManager:DataManager;
+		// sourceがどこであるかの印(あとで削除する予定)
 		public var source:String;
 		/**
 		 * コンストラクタ
@@ -49,8 +51,10 @@ package com.ttProject.tak.core
 		public function getSupply():Object {
 			return null;
 		}
+		/**
+		 * 視聴開始処理
+		 */
 		override public function play(...parameters):void {
-			// 開始処理
 			dataManager.start();
 		}
 	}

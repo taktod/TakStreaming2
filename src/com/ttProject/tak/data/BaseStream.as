@@ -16,17 +16,17 @@ package com.ttProject.tak.data
 	 */
 	public class BaseStream extends NetStream {
 		// 管理用オブジェクト
-		private var initFlg:Boolean; // 初期化済みフラグ
-		private var startPos:int; // 開始timestamp保持
-		private var lastVideoTimestamp:uint; // 最終videoのtimestamp(受け取ったデータが過去のデータの場合は、処理にまわさない。)
-		private var lastAudioTimestamp:uint; // 最終audioのtimestamp(同上)
+		private var startPos:int;				// 開始timestamp保持
+		private var initFlg:Boolean;			// 初期化済みフラグ
+		private var lastVideoTimestamp:uint;	// 最終videoのtimestamp(受け取ったデータが過去のデータの場合は、処理にまわさない。)
+		private var lastAudioTimestamp:uint;	// 最終audioのtimestamp(同上)
 		// プロパティー用データ
 		private var _client:Object;
-		private var _soundTransform:SoundTransform;
 		private var _bufferTime:Number;
+		private var _soundTransform:SoundTransform;
 		// 動作用オブジェクト
-		private var nc:NetConnection;
 		private var ns:NetStream;
+		private var nc:NetConnection;
 		// プロパティー
 		override public function get bufferLength():Number {
 			if(ns != null) {return ns.bufferLength;}
@@ -87,18 +87,19 @@ package com.ttProject.tak.data
 		 * コンストラクタ
 		 */
 		public function BaseStream() {
-			initFlg = false;
-			ns = null;
-			startPos = -1;
-			lastAudioTimestamp = 0;
-			lastVideoTimestamp = 0;
-			_client = null;
-			_soundTransform = null;
-			_bufferTime = -1;
-			
+			initFlg	= false;
+			ns				= null;
+			_client 		= null;
+			_soundTransform	= null;
+			startPos	= -1;
+			_bufferTime	= -1;
+			lastAudioTimestamp	= 0;
+			lastVideoTimestamp	= 0;
+
 			nc = new NetConnection;
 			nc.addEventListener(NetStatusEvent.NET_STATUS, onNetStatus);
 			nc.connect(null);
+
 			super(nc);
 		}
 		/**

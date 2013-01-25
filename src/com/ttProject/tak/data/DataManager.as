@@ -12,7 +12,7 @@ package com.ttProject.tak.data
 	import flash.utils.Timer;
 
 	/**
-	 * データを管理します。
+	 * データを管理します
 	 */
 	public class DataManager extends Timer {
 		// コネクション
@@ -27,11 +27,21 @@ package com.ttProject.tak.data
 		private var playedIndex:int; // 動作済みindexデータ保持
 		// 元になるtakStreamオブジェクト
 		private var stream:TakStream;
+		// データソース変更確認時刻保持
+		private var lastRestartTime:Number;
+		// p2p提供先の数を確認
 		public function get supplyCount():int {
 			return supply.length;
 		}
+		// p2p受信元存在確認
 		public function get hasP2pSource():Boolean {
 			return source.hasP2p;
+		}
+		/**
+		 * 対象のflmが取得済みであるか確認する。
+		 */
+		public function checkHasData(index:int):Boolean {
+			return flmList.get(index) != null;
 		}
 
 		/**
@@ -45,37 +55,39 @@ package com.ttProject.tak.data
 
 			flmList = new FlmDataHolder;
 			flh = null; // 始めにflhデータが存在していないはずなので、クリアしておく
-			
+
+			lastRestartTime = -1;
+
 			// 親のstream(データの再生用のstream)を保持しておく。
 			this.stream = stream;
 			this.addEventListener(TimerEvent.TIMER, onTimerEvent);
+
+			// タイマーとしての動作を開始しておく
 			super.start();
 		}
 		/**
 		 * 動作を開始する
 		 */
 		override public function start():void {
-			playedIndex = -1;
+			// 再生ベースストリームを初期化しておく。
 			this.stream.close();
+			// 動画開始indexを初期化する。
+			playedIndex = -1;
 			var stream:ISourceStream = null;
-			// sourceコネクションから接続する相手を決めなくてはいけない。
-			// とりあえず、rtmpがある場合はそちらにつなげる。
-			stream = source.getSource("rtmp");
+			// rtmpについて調査
+/*			stream = source.getSource("rtmp");
 			if(stream == null) {
 				Logger.info("rtmpはないよ");
 			}
 			else {
 				Logger.info("rtmpのtakStream開始処理はまだつくってないっす。");
-//				stream.start(-1);
-			}
-			// rtmpがなくて、httpがある場合はそっちにつなげる。
+			}*/
+			// httpについて調査
 			stream = source.getSource("http");
-			if(stream == null) {
-				Logger.info("httpもないよ");
-			}
-			else {
+			if(stream != null) {
+				// httpTakStreamを開始する。
 				stream.start(-1);
-				stream.target = true; // メインダウンロードに指定しておく。
+//				stream.target = true;
 				this.stream.source = "http";
 			}
 			// p2pの接続の構築手配しておく。
@@ -86,9 +98,6 @@ package com.ttProject.tak.data
 			catch(e:Error) {
 				Logger.error("error:" + e.message);
 			}
-
-			// シグナル用のタイマーをスタートさせておく。(ここでやっているとタイマーが多重起動する。)
-//			super.start();
 		}
 		/**
 		 * データ元となるurlを追加
@@ -140,25 +149,26 @@ package com.ttProject.tak.data
 			// DL済みコンテンツ確認
 			var oldFlm:FlmData = flmList.get(flm.index);
 			if(oldFlm != null) {
-				Logger.info("すでにもっているデータがやってきた。");
+//				Logger.info("すでにもっているデータがやってきた。");
 				return;
 			}
 			// あたらしいデータなのでflmListに登録しておく。
 			flmList.add(flm);
+
 			// supplyStream(この時点で孫以下におくって問題ないので、送っておく。)
 			supply.flm(flh, flm);
 
-			if(playedIndex == -1) {
-				// 開始前の場合、ここから開始する。
+			// 再生indexを確認する。
+			if(playedIndex == -1) { // 初動作
 				playedIndex = flm.index;
 				stream.appendDataBytes(flm.getData());
 			}
 			else {
 				// インデックスが設置済みの場合
-				if(flm.index == playedIndex + 1) { // 今回得たデータが欲しかったデータ
-//					Logger.info("取得したindex:" + flm.index);
+				if(flm.index == playedIndex + 1) { // 連番の場合
 					stream.appendDataBytes(flm.getData());
-					// 次のデータがあるか確認して存在できているなら、次のデータも流す。
+					
+					// 連番データがすでに受信済みの場合の処置
 					playedIndex ++;
 					var cachedFlm:FlmData;
 					while(true) {
@@ -173,66 +183,38 @@ package com.ttProject.tak.data
 					}
 				}
 				else {
+					// 連番でもなんでもないが、データが足りなくなっている場合(この処理なくてもtimerで補完されそうだが・・・)
 					if(stream.bufferLength < 0.5) {
 						// のこり時間がなくなってきたので補完するように手配します。
-						Logger.info("データがたりなくなったので、やりなおします。");
 						stream.setup();
 						stream.appendHeaderBytes(flh.getData());
+						
+						// とりあえずhttpStreamで補完を試みる
 						var httpStream:HttpStream = source.getSource("http") as HttpStream;
 						if(httpStream == null) {
 							// 補完可能なストリームが存在しない。
 							return;
 						}
-						// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
-						Logger.info("httpStreamを復活させる。" + playedIndex);
 						stream.source = "http";
-						// 念のため最終indexから落とし直すようにしておく。
-						httpStream.start(playedIndex);
-						source.disconnectP2pSourceStream();
+						httpStream.start(playedIndex); // 念のため最終indexを再度ダウンロードする方向にしておく。
+						source.disconnectP2pSourceStream(); // p2p接続は遅延が発生しているため。あきらめる。
 					}
 				}
-/*				else if(stream.bufferLength < 0.5) {
-					// 今回得たデータがほしかったものでなかったとしても、必要なデータがない場合(どこかでつまっていた場合あきらめてやり直す必要がある。)
-					Logger.info("データがたりなくなったので、もっているデータからやりなおします。");
-					if(flh != null) {
-						// 中途からやり直し
-						stream.setup();
-						stream.appendHeaderBytes(flh.getData());
-						playedIndex = flmList.min - 1;
-						var isAppended:Boolean = false;
-						while(true) {
-							var cacheFlm:FlmData = flmList.get(playedIndex + 1);
-							if(cacheFlm != null) {
-								stream.appendDataBytes(cachedFlm.getData());
-								isAppended = true;
-								playedIndex ++;
-							}
-							else {
-								break;
-							}
-						}
-					}
-					else {
-						// はじめからやり直し(まぁありえないけど)
-						start();
-					}
-				}*/
 			}
 		}
 		/**
 		 * flhDataを受け入れる処理
 		 */
 		public function setFlhData(data:ByteArray):void {
+			// 解析
+			flh = new FlhData(data);
+			// rtmfpの提供先に通知
+			supply.flh(flh);
 			// 初期化
 			flmList = new FlmDataHolder();
 			playedIndex = -1;
-			// 解析
-			flh = new FlhData(data);
-			// takStream
 			stream.setup();
-			stream.appendHeaderBytes(flh.getData());
-			// supplyStream(p2pへの通信では、headerがきたことは通知する必要がある。 )
-			supply.flh(flh);
+			stream.appendHeaderBytes(flh.getData()); // header追記
 		}
 		/**
 		 * 接続時の始めのflhデータを受け入れる動作(rtmfpのみ)
@@ -243,32 +225,26 @@ package com.ttProject.tak.data
 			if(httpStream != null) {
 				httpStream.stop();
 			}
+			// p2pで動作することを宣言する。
 			stream.source = "p2p";
 			// flhデータが存在していない場合のみ、初期化しておく。
 			if(flh == null || stream.bufferLength < 0.5) {
 				Logger.info("再セットアップします。");
+				// 解析
+				flh = new FlhData(data);
 				// 初期化
 				flmList = new FlmDataHolder();
 				playedIndex = -1;
-				// 解析
-				flh = new FlhData(data);
-				// takStream処理
 				stream.setup();
 				stream.appendHeaderBytes(flh.getData());
 			}
 		}
 		/**
-		 * 対象のflmが取得済みであるか確認する。
-		 */
-		public function checkHasData(index:int):Boolean {
-			return flmList.get(index) != null;
-		}
-		private var lastRestartTime:Number = -1;
-		/**
 		 * タイマー処理
 		 */
 		private function onTimerEvent(event:TimerEvent):void {
 			try {
+				// 他のオブジェクトのtimer処理を実施させる
 				try {
 					source.timerEvent();
 					supply.timerEvent();
@@ -277,19 +253,19 @@ package com.ttProject.tak.data
 				catch(e:Error) {
 					Logger.error("他の動作を実行したらエラーでた。:" + e.message);
 				}
-				// 他のプログラムのeventを実行してみる。
-				// GUI処理だが、いまだけここにいれておく。
+				// 遅延の確認をして、状態が酷い場合はほぼ確実にデータがとれるストリームで補完してやる
 				var length:Number = stream.bufferLength;
+				// 開始前の確認(開始前に補完が走ると暴走する)
 				if(length == -1 || length > 1 || stream.currentFPS == 0) {
-					// 開始前もしくはデータがまだのこっている場合は、追記読み込み補助は実施しない
 					return;
 				}
+				// 補完動作が多重ではしらないように、補完後１秒は補完を再開しないことにしておく。
 				var currentTime:Number = new Date().time;
 				if(currentTime < lastRestartTime + 1000) {
-//					Logger.info("リスタートしてから1秒しかたっていないので、もう少し様子をみます。");
 					return;
 				}
 				lastRestartTime = currentTime;
+
 				// データの補完を手配してみる。
 				var httpStream:HttpStream = source.getSource("http") as HttpStream;
 				if(httpStream == null) {
@@ -302,8 +278,6 @@ package com.ttProject.tak.data
 				source.disconnectP2pSourceStream();
 				// 念のため最終indexから落とし直すようにしておく。
 				httpStream.start(playedIndex);
-				// DL時に+1するので、やっぱここではいれない方がいいっぽいけど
-//				playedIndex ++; // 仮にうまくいかなかった場合に再動作する必要があるのだが、その際には
 			}
 			catch(e:Error) {
 				Logger.error("onTimerEvent(DataManager):" + e.message);
@@ -328,10 +302,10 @@ import flash.utils.ByteArray;
  */
 class FlmDataHolder {
 	private var _data:Object; // データ保持
-	private var _min:int;
-	public function get min():int {
+//	private var _min:int;
+/*	public function get min():int {
 		return _min;
-	}
+	}*/
 	/**
 	 * コンストラクタ
 	 */
@@ -364,15 +338,15 @@ class FlmDataHolder {
 		// 保持データが10以上の場合は、古いデータを破棄します。
 		if(count > 10) {
 			delete _data[min];
-			min = -1;
+/*			min = -1;
 			for(key in _data) {
 				count ++;
 				if(min == -1 || min > key) {
 					min = key;
 				}
-			}
+			}*/
 		}
-		_min = min;
+//		_min = min;
 	}
 }
 
@@ -467,13 +441,13 @@ class FlhData {
 class SourceHolder {
 	// object["形式"] = "データ"の形で保持させておく。
 	// なおp2pだけ複数同時に持てるわけだが・・・どうしよう
-	private var source:Object;
+	private var _source:Object;
 	/**
 	 * p2pのストリームがあるかどうか
 	 */
 	public function get hasP2p():Boolean {
-		for(var key:* in source) {
-			if(source[key] is P2pSourceStream) {
+		for(var key:* in _source) {
+			if(_source[key] is P2pSourceStream) {
 				return true;
 			}
 		}
@@ -483,26 +457,26 @@ class SourceHolder {
 	 * コンストラクタ
 	 */
 	public function SourceHolder() {
-		source = {};
+		_source = {};
 	}
 	/**
-	 * 
+	 * ソースデータの追加
 	 */
 	public function addSource(name:String, stream:ISourceStream):void {
-		source[name] = stream;
+		_source[name] = stream;
 	}
 	/**
-	 * 
+	 * ソースデータの参照
 	 */
 	public function getSource(name:String):ISourceStream {
-		return source[name];
+		return _source[name];
 	}
 	/**
 	 * timerの動作
 	 */
 	public function timerEvent():void {
-		for(var key:* in source) {
-			var stream:* = source[key];
+		for(var key:* in _source) {
+			var stream:* = _source[key];
 			if(stream is HttpStream) {
 				(stream as HttpStream).onTimerDataLoadEvent();
 			}
@@ -510,7 +484,7 @@ class SourceHolder {
 				var p2pSourceStream:P2pSourceStream = (stream as P2pSourceStream);
 				if(!p2pSourceStream.connected) {
 					// 接続していないと判定された場合は捨てる
-					delete source[key];
+					delete _source[key];
 				}
 				else {
 					p2pSourceStream.onTimerEvent();
@@ -522,12 +496,12 @@ class SourceHolder {
 	 * p2pのストリームを破棄しておく。
 	 */
 	public function disconnectP2pSourceStream():void {
-		for(var key:* in source) {
-			var stream:* = source[key];
+		for(var key:* in _source) {
+			var stream:* = _source[key];
 			if(stream is P2pSourceStream) {
 				var p2pSourceStream:P2pSourceStream = (stream as P2pSourceStream);
 				p2pSourceStream.stop();
-				delete source[key];
+				delete _source[key];
 			}
 		}
 	}
@@ -538,19 +512,30 @@ class SourceHolder {
  * こっちはきっちりと管理しなければならない。
  */
 class SupplyHolder {
-	private var supply:Array;
+	// こちらは単なるArrayで保持
+	private var _supply:Array;
+	// サイズ参照
 	public function get length():int {
-		return supply.length;
+		return _supply.length;
 	}
+	/**
+	 * コンストラクタ
+	 */
 	public function SupplyHolder() {
-		supply = [];
+		_supply = [];
 	}
+	/**
+	 * 提供先の追加
+	 */
 	public function addSupply(stream:ISupplyStream):void {
-		supply.push(stream);
+		_supply.push(stream);
 	}
+	/**
+	 * timerの動作
+	 */
 	public function timerEvent():void {
-		for(var i:int = 0;i < supply.length;i ++) {
-			(supply[i] as P2pSupplyStream).onTimerEvent();
+		for(var i:int = 0;i < _supply.length;i ++) {
+			(_supply[i] as P2pSupplyStream).onTimerEvent();
 		}
 	}
 	/**
@@ -559,11 +544,10 @@ class SupplyHolder {
 	public function flm(flh:FlhData, flm:FlmData):void {
 		var deleteTarget:Array = [];
 		var i:int;
-		for(i = 0;i < supply.length;i ++) {
-			var stream:ISupplyStream = supply[i];
+		for(i = 0;i < _supply.length;i ++) {
+			var stream:ISupplyStream = _supply[i];
 			// 接続しているか確認
 			if(!stream.connected) {
-				// 切断しているので破棄queueに追加
 				deleteTarget.push(i);
 			}
 			else {
@@ -578,7 +562,7 @@ class SupplyHolder {
 		// 存在しなくなったstreamを破棄しておく。
 		deleteTarget.reverse();
 		for(i = 0;i < deleteTarget.length;i ++) {
-			supply.splice(deleteTarget[i], 1);
+			_supply.splice(deleteTarget[i], 1);
 		}
 	}
 	/**
@@ -587,11 +571,10 @@ class SupplyHolder {
 	public function flh(flh:FlhData):void {
 		var deleteTarget:Array = [];
 		var i:int;
-		for(i = 0;i < supply.length;i ++) {
-			var stream:ISupplyStream = supply[i];
+		for(i = 0;i < _supply.length;i ++) {
+			var stream:ISupplyStream = _supply[i];
 			// 接続確認
 			if(!stream.connected) {
-				// 切断しているデータがあれば破棄手配
 				deleteTarget.push(i);
 			}
 			else {
@@ -602,7 +585,7 @@ class SupplyHolder {
 		// 存在しなくなったstreamを破棄しておく。
 		deleteTarget.reverse();
 		for(i = 0;i < deleteTarget.length;i ++) {
-			supply.splice(deleteTarget[i], 1);
+			_supply.splice(deleteTarget[i], 1);
 		}
 	}
 }
@@ -611,29 +594,29 @@ class SupplyHolder {
  * rtmfpのコネクション保持
  */
 class RtmfpHolder {
-	private var rtmfp:Object;
-	private var dataManager:DataManager;
-	private var startFlg:Boolean;
+	private var _rtmfp:Object;
+	private var _dataManager:DataManager;
+	private var _startFlg:Boolean;
 	/**
 	 * コンストラクタ
 	 */
 	public function RtmfpHolder(dataManager:DataManager) {
-		rtmfp = {};
-		this.dataManager = dataManager;
+		this._rtmfp = {};
+		this._dataManager = dataManager;
 	}
 	/**
 	 * 供給用接続として登録する
 	 */
 	public function addSupply(url:String, name:String):void {
 		var key:String = url + "+" + name;
-		if(rtmfp[key] == null) {
-			rtmfp[key] = new RtmfpConnection(url, name, dataManager, false, true);
-			if(startFlg) {
-				(rtmfp[key] as RtmfpConnection).startConnection();
+		if(_rtmfp[key] == null) {
+			_rtmfp[key] = new RtmfpConnection(url, name, _dataManager, false, true);
+			if(_startFlg) {
+				(_rtmfp[key] as RtmfpConnection).startConnection();
 			}
 		}
 		else {
-			var connection:RtmfpConnection = rtmfp[key] as RtmfpConnection;
+			var connection:RtmfpConnection = _rtmfp[key] as RtmfpConnection;
 			connection.supply = true;
 		}
 	}
@@ -642,14 +625,14 @@ class RtmfpHolder {
 	 */
 	public function addSource(url:String, name:String):void {
 		var key:String = url + "+" + name;
-		if(rtmfp[key] == null) {
-			rtmfp[key] = new RtmfpConnection(url, name, dataManager, true, false);
-			if(startFlg) {
-				(rtmfp[key] as RtmfpConnection).startConnection();
+		if(_rtmfp[key] == null) {
+			_rtmfp[key] = new RtmfpConnection(url, name, _dataManager, true, false);
+			if(_startFlg) {
+				(_rtmfp[key] as RtmfpConnection).startConnection();
 			}
 		}
 		else {
-			var connection:RtmfpConnection = rtmfp[key] as RtmfpConnection;
+			var connection:RtmfpConnection = _rtmfp[key] as RtmfpConnection;
 			connection.source = true;
 		}
 	}
@@ -657,23 +640,26 @@ class RtmfpHolder {
 	 * 接続を開始させる。
 	 */
 	public function startConnection():void {
-		startFlg = true;
-		for(var key:* in rtmfp) {
-			(rtmfp[key] as RtmfpConnection).startConnection();
+		_startFlg = true;
+		for(var key:* in _rtmfp) {
+			(_rtmfp[key] as RtmfpConnection).startConnection();
 		}
 	}
 	/**
 	 * 接続を停止させる。
 	 */
 	public function stopConnection():void {
-		startFlg = false;
-		for(var key:* in rtmfp) {
-			(rtmfp[key] as RtmfpConnection).closeConnection();
+		_startFlg = false;
+		for(var key:* in _rtmfp) {
+			(_rtmfp[key] as RtmfpConnection).closeConnection();
 		}
 	}
+	/**
+	 * timer動作
+	 */
 	public function timerEvent():void {
-		for(var key:* in rtmfp) {
-			(rtmfp[key] as RtmfpConnection).onTimerEvent();
+		for(var key:* in _rtmfp) {
+			(_rtmfp[key] as RtmfpConnection).onTimerEvent();
 		}
 	}
 }

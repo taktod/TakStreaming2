@@ -48,8 +48,12 @@
 			 * 視聴開始
 			 */
 			protected function play():void {
-				// 視聴開始処理(自動スタートにしてある。)
-				netStream.play(null);
+				try {
+					netStream.play(null);
+				}
+				catch(e:Error) {
+					logger.error("error:" + e.message);
+				}
 			}
 			/**
 			 * ボリュームコントロール
