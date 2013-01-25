@@ -21,10 +21,34 @@ package com.ttProject.tak.data
 	 * とりあえずいまのところ1DL 2UP強制にしてある
 	 */
 	public class RtmfpConnection {
-		private var _masterNodeId:String;
+		private var dataManager:DataManager; // データ管理マネージャー
+		
+		// タイマー用
+		private var waitCount:int;
+		private var counter:int;
+		
+		// p2p網作成用
+		private var url:String; // 動作URL
+		private var name:String; // group名
+		private var nc:NetConnection;
+		private var ng:NetGroup;
+		private var _masterNodeId:String; // クラスタツリーの頂点Node(ご先祖様)のID
+
+		// フラグ
+		private var mode:int = 1; // とりあえず、1ならダウンロード調査中 2ならアップロード先受付中
+		private var startFlg:Boolean;
+		private var sourceFlg:Boolean; // このp2pからデータを受け取る
+		private var supplyFlg:Boolean; // このp2pにデータを送信する
+
+		// 接続データ一覧
+		private var supplyStream1:P2pSupplyStream = null;
+		private var supplyStream2:P2pSupplyStream = null;
+		private var sourceStream1:P2pSourceStream = null;
+
+		// 参照or設定
 		public function set masterNodeId(val:String):void {
+			// 自分のIDにもどってきた場合はなにかがおかしい。
 			if(val == nc.nearID) {
-				// 自分のIDにもどってきた場合はなにかがおかしい。
 				if(sourceStream1 != null) {
 					sourceStream1.stop();
 					sourceStream1 = null;
@@ -32,10 +56,11 @@ package com.ttProject.tak.data
 				_masterNodeId = null;
 				return;
 			}
-			// すでに指定されていたご先祖が再度ご先祖であると伝搬された場合
+			// すでに取得済みなnodeのIDだった場合は、子孫に連絡する必要なし
 			if(_masterNodeId == val) {
 				return;
 			}
+			// 保持して連絡しておく。
 			_masterNodeId = val;
 			if(supplyStream1 != null) {
 				supplyStream1.source(val);
@@ -45,30 +70,19 @@ package com.ttProject.tak.data
 			}
 		}
 		public function get masterNodeId():String {
-			// masterNodeIdが決定していない状態で問い合わせがあった場合、自分がご先祖になってる。
+			// 自分のご先祖様がいるか確認
 			if(_masterNodeId == null) {
+				// いない場合ソースストリームが万一あったらとめとく
 				if(sourceStream1 != null) {
 					sourceStream1.stop();
 					sourceStream1 = null;
 				}
+				// 自分がご先祖様になる。
 				return nc.nearID;
 			}
+			// しっているご先祖様をお伝えする
 			return _masterNodeId;
 		}
-		private var url:String; // 動作URL
-		private var name:String; // group名
-		private var dataManager:DataManager; // データ管理マネージャー
-		// タイマー動作の待機データ長保持
-		private var waitCount:int;
-		// 待機用のカウンター
-		private var counter:int;
-		
-		// p2p網作成用
-		private var nc:NetConnection;
-		private var ng:NetGroup;
-
-		// 動作モード(両立可能)
-		private var sourceFlg:Boolean; // このp2pからデータを受け取る
 		public function set source(flg:Boolean):void {
 			if(sourceFlg != flg) {
 				sourceFlg = flg;
@@ -76,8 +90,6 @@ package com.ttProject.tak.data
 			}
 		}
 		public function get source():Boolean {return sourceFlg;}
-
-		private var supplyFlg:Boolean; // このp2pにデータを送信する
 		public function set supply(flg:Boolean):void {
 			if(supplyFlg != flg) {
 				supplyFlg = flg;
@@ -85,14 +97,6 @@ package com.ttProject.tak.data
 			}
 		}
 		public function get supply():Boolean {return supplyFlg;}
-
-		// 接続データ一覧
-		private var supplyStream1:P2pSupplyStream = null;
-		private var supplyStream2:P2pSupplyStream = null;
-		private var sourceStream1:P2pSourceStream = null;
-		
-		private var mode:int = 1; // とりあえず、1ならダウンロード調査中 2ならアップロード先受付中
-		private var startFlg:Boolean;
 
 		/**
 		 * コンストラクタ
@@ -109,35 +113,32 @@ package com.ttProject.tak.data
 			this.counter = 0;
 			this.startFlg = false;
 			
-			// できたらここでコネクトしておきたい。
+			// コンストラクタの時点でp2pに参加する
 			resumeConnection();
 		}
 		/**
 		 * ネット関連のイベント処理
 		 */
 		private function onNetStatusEvent(event:NetStatusEvent):void {
-//			Logger.info(event.info.code);
 			switch(event.info.code) {
-				case "NetConnection.Connect.Success":
-					// 接続成功したら、groupをつくっておく。
+				case "NetConnection.Connect.Success": // netConnectionの接続成功時
 					connectGroup();
 					Logger.info("自分[" + nc.nearID + "]");
 					break;
-				case "NetConnection.Connect.Close":
-				case "NetConnection.Connect.NetworkChanged":
-					// 切断した場合は、あたらしい接続をつくりなおす必要がある。(ただしタイマーでやることにする。)
+				case "NetConnection.Connect.Close": // ネットワークが閉じたとき
+				case "NetConnection.Connect.NetworkChanged": // ネットワークが変わったとき
 					resumeConnection();
-//					Logger.info("ここだろ？");
 					break;
-				case "NetGroup.Connect.Success":
-					// netgroupにつながったら必要な相手をみつける作業にはいる。
-					changeMode(); // モードをフラグにあわせたものにする。
+				case "NetGroup.Connect.Success": // groupにアクセスできたとき
+					if(startFlg) {
+						// すでにplayボタンが押されている場合には、相手検索に入る
+						changeMode(); // 状態変換して、接続先検索開始
+					}
 					break;
-				case "NetGroup.Replication.Request":
-					// リクエストをうけとった場合の処理
+				case "NetGroup.Replication.Request": // リクエストをうけとったとき
 					var name:String = (new TokenGenerator()).getRandomText();
-					// 相手がみつかった、次の接続をうけいれるかは、タイマーで監視することにする。
-					if(supplyStream1 == null && dataManager.supplyCount != 2) {
+					// 相手がみつかった接続できる枠があるか確認
+					if(supplyStream1 == null && dataManager.supplyCount < 2) { // 枠１
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
 							supplyStream1 = new P2pSupplyStream(name, nc, dataManager, this);
@@ -147,7 +148,7 @@ package com.ttProject.tak.data
 							Logger.info("error:ee:" + e.message);
 						}
 					}
-					else if(supplyStream2 == null && dataManager.supplyCount != 2) {
+					else if(supplyStream2 == null && dataManager.supplyCount < 2) { // 枠２
 						try {
 							ng.writeRequestedObject(event.info.requestID, name + ":" + nc.nearID);
 							supplyStream2 = new P2pSupplyStream(name, nc, dataManager, this);
@@ -157,26 +158,24 @@ package com.ttProject.tak.data
 							Logger.info("error:ee:" + e.message);
 						}
 					}
-					else {
+					else { // 枠なし、よって拒否しとく
 						ng.denyRequestedObject(event.info.requestID);
 					}
+					// これ以上アクセスがこないようにqueueはいったんクリア
 					clearQueue();
 					break;
-				case "NetGroup.Replication.Fetch.Result":
-					// 応答をうけとったときの処理
-					Logger.info(event.info.object as String);
-					// 接続がきまったときに次の接続をうけいれるか確認する必要あり
+				case "NetGroup.Replication.Fetch.Result": // 相手からアクセスリクエストの応答があったとき
+					// p2pのDL先枠があるか確認
 					if(sourceStream1 == null && !dataManager.hasP2pSource) {
 						var data:Array = (event.info.object as String).split(":");
 						sourceStream1 = new P2pSourceStream(data[0], data[1], nc, dataManager, this);
-						Logger.info("sourcestream1決定しました。");
 						// データの取得元のsourceStreamを設定しておく。
 						dataManager.addSourceStream("rtmfp:" + url, sourceStream1);
 					}
 					clearQueue();
 					break;
-				case "NetGroup.Replication.Fetch.Failed":
-					// 応答をうけとったが失敗したときの処理
+				case "NetGroup.Replication.Fetch.Failed": // 相手からアクセス拒否されたとき
+				default: // その他
 					break;
 			}
 		}
@@ -185,11 +184,12 @@ package com.ttProject.tak.data
 		 */
 		private function connectGroup():void {
 			var groupSpec:GroupSpecifier = new GroupSpecifier(name);
-			if(url == "rtmfp:") {
+			if(url == "rtmfp:") { // サーバーを指定していない場合はLAN内だけでp2pする
 				groupSpec.ipMulticastMemberUpdatesEnabled = true;
 				groupSpec.addIPMulticastAddress("224.0.0.255:30000");
 			}
 			groupSpec.objectReplicationEnabled = true;
+
 			ng = new NetGroup(nc, groupSpec.groupspecWithAuthorizations());
 			ng.addEventListener(NetStatusEvent.NET_STATUS, onNetStatusEvent);
 		}
@@ -197,11 +197,10 @@ package com.ttProject.tak.data
 		 * 接続を開始する
 		 */
 		public function startConnection():void {
-//			resumeConnection();
-			
-			// 動作コントロールに必要な処理を実行しておく。
+			// timerの間隔はランダムできめておく。
 			var d:Date = new Date();
 			waitCount = 20 + d.time % 50;
+			// 開始フラグON
 			startFlg = true;
 		}
 		/**
@@ -219,7 +218,7 @@ package com.ttProject.tak.data
 			nc = new NetConnection;
 			nc.addEventListener(NetStatusEvent.NET_STATUS, onNetStatusEvent);
 			nc.connect(url);
-			// 一時的なタイマーなので、許可しておく。
+			// タイマーで接続できなかった場合にレジュームできるようにしておく。(netConnection.Connect.Failedとか使えばいいのでは？と思った)
 			var timer:Timer = new Timer(4.0, 1);
 			timer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void {
 				try {
@@ -235,7 +234,7 @@ package com.ttProject.tak.data
 			});
 		}
 		/**
-		 * 全接続をすてて停止する。
+		 * p2p通信を閉じる
 		 */
 		public function closeConnection():void {
 			clearQueue();
@@ -251,16 +250,17 @@ package com.ttProject.tak.data
 			startFlg = false;
 		}
 		/**
-		 * 相手に送ることが可能な状態であることをqueueに出す
+		 * 提供先募集
 		 */
 		private function supplyQueue():void {
 			clearQueue();
+			// アクセス数がひくくて、枠の空きがあるか確認
 			if(dataManager.supplyCount < 2 && (supplyStream1 == null || supplyStream2 == null)) {
 				ng.addHaveObjects(1, 1);
 			}
 		}
 		/**
-		 * 相手から受け取ることが可能な状態であることをqueueに出す
+		 * データ元募集
 		 */
 		private function sourceQueue():void {
 			clearQueue();
@@ -277,66 +277,54 @@ package com.ttProject.tak.data
 			}
 		}
 		/**
-		 * 設定queueをクリアする
+		 * 募集をやめる。
 		 */
 		private function clearQueue():void {
 			ng.removeHaveObjects(1, 1);
 			ng.removeWantObjects(1, 1);
 		}
 		/**
-		 * 動作モードがかわったときの処理
+		 * 動作モードを変更する処理
 		 * TODO halfコネクションとか考えてどのindex待ちにするか決めておく必要あり。
 		 */
 		private function changeMode():void {
+			// 接続確認
 			if(nc == null || !nc.connected || ng == null) {
-				// 接続していないので、放置(netConnection -> netGroupから実行がくるのでタイマーによる監視とかいらない。)
 				return;
 			}
 			// 接続可能モードでも、必要があれば、接続をうけつけなくしたりコントロールしないとだめ。
-			if(supply && source) {
-				// タイマーによる動作の監視を実施する？
-				if(dataManager.hasP2pSource) {
-					// p2pのソースをもっている場合は提供先を探したい。
-					mode = 1;
-				}
-				// 他の接続と共用している可能性があるので、データ転送があってもソース枠があいているなら探す。
-				if(mode == 1) {
+			if(supply && source) { // 提供も受け入れもする場合
+				// p2pのソースを取得済みの場合はもしくは、前回データソース募集した場合
+				if(dataManager.hasP2pSource || mode == 1) {
+					// データ提供先募集
 					mode = 2;
-					// supplyするよ状態に変更する。
 					supplyQueue();
 				}
 				else {
+					// データ取得元募集
 					mode = 1;
-					// sourceほしい状態に変更する。
 					sourceQueue();
 				}
 			}
-			else if(supply) {
-				// 提供するよコネクションのみつくる
+			else if(supply) { // 提供のみの場合
 				supplyQueue();
 			}
-			else if(source) {
-				// 取得ほしいコネクションのみつくる
+			else if(source) { // 取得のみの場合
 				sourceQueue();
 			}
-			else {
-				// 両方のコネクションをつくらない(意味ないがこういう状況もまぁできると思う)
+			else { // どちらも実行しない場合
 				clearQueue();
 			}
 		}
 		/**
-		 * 一定時間ごとに呼び出される動作確認
+		 * タイマー動作
 		 */
 		public function onTimerEvent():void {
 			try {
+				// rtmfpの接続が成立していない場合 もしくは動作開始していない場合はなにもしない
 				if(nc == null || !nc.connected || !startFlg) {
 					return;
 				}
-				counter ++;
-				if(counter < waitCount) {
-					return;
-				}
-				// タイマーで動作を監視しておきます。
 				// 死んでる接続はけしておく。
 				if(sourceStream1 != null && !sourceStream1.connected) {
 					sourceStream1.stop();
@@ -355,9 +343,14 @@ package com.ttProject.tak.data
 					supplyStream2.stop();
 					supplyStream2 = null;
 				}
-				// モードを変更しておく。
-				changeMode();
+				// タイマーの待ち時間に揺らぎをつくっておく。
+				counter ++;
+				if(counter < waitCount) {
+					return;
+				}
 				counter = 0;
+				// 相手参照モードを変更する
+				changeMode();
 			}
 			catch(e:Error) {
 				Logger.error("onTimerEvent(RtmfpConnection):" + e.message);
