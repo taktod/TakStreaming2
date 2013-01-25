@@ -60,7 +60,7 @@ package com.ttProject.tak.source
 		 */
 		public function stop():void {
 			isSequence = false;
-			// すでに実行しているダウンロードをキャンセルできるならしたほうがよい
+			// すでに実行しているダウンロードをキャンセルできるならしたほうがよい(たぶんできないし、できてもタスク管理が面倒になりそう)
 		}
 		/**
 		 * ダウンロードを開始する
@@ -68,55 +68,55 @@ package com.ttProject.tak.source
 		 */
 		public function start(... parameter):void {
 			stop(); // いったん停止してから開始します。
+			// 開始indexデータを参照
 			var startIndex:int = parameter[0];
-			isSequence  = true;
-			targetIndex = startIndex;
-			if(startIndex == -1) {
-				passedIndex = -1;
+			isSequence  = true; // 連番DLモード
+			targetIndex = startIndex; // 処理すべきindex記録
+			if(startIndex == -1) { // 新規DLの場合
+				passedIndex = -1; // 処理済みindex保持
 			}
 			this.inTask = true; // タスク中に切り替える
-			this.lastDlTime = -1;
+			this.lastDlTime = new Date().time; // 最終処理時刻を現在時刻にしておく。
+			// flfのDLから開始
 			downloadText(flfFile, function(data:String):void {
-				// 解析しておく。
 				analizeFlfFile(data);
 
 				// 開始処理を実施する。
 				if(targetIndex != -1) {
 					// indexが固定されている場合はそのindexがデータにあるか確認する。
 					var flmObject:FlmObject = flmList.get(targetIndex);
-					if(flmObject != null) {
+					if(flmObject != null) { // データがあった場合
 						// データがある場合はそのデータからデータをダウンロードするようにする。
 						// flfファイル上でのダウンロード開始indexがどこであるか管理する必要がある。(ただしくシーケンスダウンロードするために必要。)
 						passedIndex = flmList.getAbsPos(targetIndex);
+					}
+					else {
+						passedIndex = -1;
 					}
 				}
 				if(passedIndex == -1) {
 					// 開始位置が決定しないので、flmListからデフォルトの開始位置をもらう。
 					passedIndex = flmList.getDefaultStartAbsPos();
 				}
-				// このタイミングで開始にあたりflmにresetFlgをつければよさそう。
-				// このデータから読み込みを進める。
-				// まずflhデータを読み込む必要がある。(連番で読み込んでいる場合は必要ない。)
-				downloadBinary(flhFile, function(data:ByteArray):void {
-					// flhデータを取得しました。
-					// flhデータを取得することができたので、次の段階にすすむ。
-//					Logger.info("startIndex:" + startIndex);
-					if(startIndex == -1) {
-						// startIndexが-1でなければ、flhはとりあえず見送ってみる
+				Logger.info("passedIndex:" + passedIndex);
+				if(startIndex != -1) {
+					loadSegment(); // 中途indexから再開する場合は、そのままflmデータにうつる
+				}
+				else { // 初期DLの場合はflhからやりなおす
+					downloadBinary(flhFile, function(data:ByteArray):void {
+						Logger.info("初期DL開始なのでflhを手始めにDLします。");
 						dataManager.setFlhData(data);
-					}
-					// flmデータを順番にダウンロードしておく。
-					loadSegment();
-				});
+						loadSegment();
+					});
+				}
 			});
 		}
 		/**
 		 * タイマーで動作するデータのダウンロード処理
 		 */
 		public function onTimerDataLoadEvent():void {
+			// task処理中もしくは連番DLでない場合は処理しない
 			if(inTask || !isSequence) {
-				// task処理中
-				// シーケンスDLではない
 				return;
 			}
 			// 最終DLからある程度経ってから次のどうさにもっていきます。
@@ -125,9 +125,9 @@ package com.ttProject.tak.source
 				return;
 			}
 			lastDlTime = new Date().time;
+			
 			inTask = true; // タスク中に変更する。
-			// イベントがきたらダウンロードを実施する。
-			// flfデータをダウンロードする。
+			// とりあえずflfの確認からはじめる
 			downloadText(flfFile, function(data:String):void {
 				analizeFlfFile(data);
 				loadSegment();
@@ -140,43 +140,29 @@ package com.ttProject.tak.source
 			// 次のデータをDLしようとする。
 			var flmObject:FlmObject = flmList.getAbs(passedIndex);
 			if(flmObject == null) {
-				if(flmList.checkNeedRestart(passedIndex)) {
+/*				if(flmList.checkNeedRestart(passedIndex)) {
 					// やりなおす必要がある場合はそうする。
 					Logger.info("やりなおす必要がでてきました。");
 					flmList.checkInfo(passedIndex);
 					return;
 				}
 				else {
-/*					if(isLoadMedia) {
-						// イベントがきたらダウンロードを実施する。
-						// flfデータをダウンロードする。
-						downloadText(flfFile, function(data:String):void {
-							analizeFlfFile(data);
-							loadSegment();/
-						});
-					}
-					else {
-						// 次のタイマーイベントで処理させる。
-						inTask = false;
-					}*/
-					// 次のタスクで次のデータを読み込めばよいはず
+					// タスクを解放しておいて、あとでやりなおす
 					inTask = false;
-				}
+				}*/
+				inTask = false;
 			}
 			else {
 				isLoadMedia = true;
 				// 普通にDLできる場合はDLする
-//				lastDlTime = new Date().time;
 				if(flmObject.resetFlg) {
-//					Logger.info("リセットがついてた");
 					// headerからDLやり直す必要あり。
 					downloadBinary(flhFile, function(data:ByteArray):void {
+						Logger.info("中途でresetFlgがあったのでflhをダウンロードします。");
 						// flhデータを取得することができたので、次の段階にすすむ。
-//						Logger.info("resetするよ");
 						dataManager.setFlhData(data);
 						if(dataManager.checkHasData(flmObject.index)) {
 							// すでに対象のデータは保持済み(メインストリームでも発生する可能性があるっぽい。)
-//							Logger.info("保持済みのデータのDLを実行しようとした");
 							passedIndex = flmList.getAbsPos(flmObject.index) + 1;
 							loadSegment();
 							return;
@@ -206,7 +192,7 @@ package com.ttProject.tak.source
 		}
 		/**
 		 * 特定のindexのデータをダウンロードして補完する。
-		 */
+		 * /
 		public function spot(index:int):void {
 			if(inTask) {
 				// 別件でhttpStreamが起動中なら、動作させない。
@@ -250,7 +236,7 @@ package com.ttProject.tak.source
 		 * flhファイルのデータを取得する動作
 		 * 外部からflhデータのみ欲しいときに呼び出される動作です。
 		 * (未実装)
-		 */
+		 * /
 		public function header():void {
 			// 現行のflhデータを調べて、取得する。
 			// とりあえず最新のデータが欲しいので、強制取得にしておく。
@@ -324,12 +310,10 @@ package com.ttProject.tak.source
 		private function download(loader:URLLoader, target:String):void {
 			loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(event:SecurityErrorEvent):void {
 				Logger.info("securityエラー発生");
-//				dataManager.start();
 				inTask = false;
 			});
 			loader.addEventListener(IOErrorEvent.IO_ERROR, function(event:IOErrorEvent):void {
 				Logger.info("IO_ERRORエラー発生");
-//				dataManager.start();
 				inTask = false;
 			});
 			try {
@@ -338,7 +322,6 @@ package com.ttProject.tak.source
 			}
 			catch(e:Error) {
 				Logger.info("error on downloadData:" + e.toString());
-//				dataManager.start();
 			}
 		}
 		public function hashCode():String {
@@ -375,10 +358,14 @@ class FlmList {
 		1 30138
 		2 30139
 		3 30140
+		4 30141
+		1 30142
+		2 30143
+		3 30144
 		というデータがある場合は1〜3の3データのみもっていると解釈すべき。
 		かならず1からになるとも限らないところがポイント
 		*/
-		if(startIndex > object.index || startIndex == -1) {
+		if(object.resetFlg || startIndex == -1) {
 			// flfCounterの位置をずらしておく。
 			if(endIndex != -1) {
 				// flfのカウンターをリセットするのは、endIndexが-1でない状態で入れ替えがあった場合
@@ -434,11 +421,17 @@ class FlmList {
 	 * 開始する場合に推奨される開始位置の取得
 	 */
 	public function getDefaultStartAbsPos():int {
+		return getAbsPos(getDefaultStartPos());
+	}
+	/**
+	 * 開始する場合に推奨される開始位置の取得
+	 */
+	public function getDefaultStartPos():int {
 		var index:int = endIndex; // 適当な開始位置を指定する。
 		if(index < startIndex) {
 			index = startIndex;
 		}
-		return getAbsPos(index);
+		return index;
 	}
 	/**
 	 * flfデータがすすみすぎているか確認する。
@@ -447,8 +440,13 @@ class FlmList {
 	 * 最終インデックスでない場合は、やりなおし
 	 */
 	public function checkNeedRestart(absIndex:int):Boolean {
+		// リロードされると暴走するか？
 		return absIndex < flfCounter;
 	}
+	/**
+	 * 内部情報を確認
+	 * toStringを実装すれば必要ないか？
+	 */
 	public function checkInfo(absIndex:int):void {
 		Logger.info("checkNeedRestart:" + absIndex + ":" + flfCounter);
 	}
@@ -456,9 +454,11 @@ class FlmList {
 	 * 文字列化するためのサポート関数
 	 */
 	public function toString():String {
-		var data:String = "";
+		var data:String = "" + flfCounter;
+		var i:int = 0;
 		for(var key:String in list) {
-			data += list[key];
+			data += ":" + list[key] + "\n";
+			i ++;
 		}
 		return data;
 	}
@@ -470,13 +470,14 @@ class FlmList {
 class FlmObject {
 	// 各パラメーターはコンストラクタで設定してしまうので、参照のみ許可しておく。
 	private var _duration:Number;
-	private var _file:String;
-	private var _resetFlg:Boolean;
-	private var _index:int;
 	public function get duration():Number {return _duration;}
+	private var _file:String;
 	public function get file():String {return _file;}
+	private var _resetFlg:Boolean;
 	public function get resetFlg():Boolean {return _resetFlg;}
+	private var _index:int;
 	public function get index():int {return _index;}
+
 	/**
 	 * コンストラクタ
 	 */
@@ -492,10 +493,6 @@ class FlmObject {
 	 * 文字列化
 	 */
 	public function toString():String {
-		return "{d:" + duration + " f:" + file + " r:" + resetFlg + "}\n";
+		return "{i:" + index + " d:" + duration + " f:" + file + " r:" + resetFlg + "}\n";
 	}
 }
-
-/*
-
-*/
