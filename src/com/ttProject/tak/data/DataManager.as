@@ -69,6 +69,7 @@ package com.ttProject.tak.data
 		 * 動作を開始する
 		 */
 		override public function start():void {
+			Logger.info("dataManager.start()");
 			// 再生ベースストリームを初期化しておく。
 			this.stream.close();
 			// 動画開始indexを初期化する。
@@ -185,6 +186,7 @@ package com.ttProject.tak.data
 				else {
 					// 連番でもなんでもないが、データが足りなくなっている場合(この処理なくてもtimerで補完されそうだが・・・)
 					if(stream.bufferLength < 0.5) {
+						Logger.info("dataManager.startReliableDLStream() on setFlmData");
 						// のこり時間がなくなってきたので補完するように手配します。
 						stream.setup();
 						stream.appendHeaderBytes(flh.getData());
@@ -203,6 +205,7 @@ package com.ttProject.tak.data
 			flh = new FlhData(data);
 			// rtmfpの提供先に通知
 			supply.flh(flh);
+			Logger.info("flhがきたので、強制再生成になります。");
 			streamSetup();
 		}
 		/**
@@ -256,6 +259,7 @@ package com.ttProject.tak.data
 				lastRestartTime = currentTime;
 
 				// データの補完を手配してみる。
+				Logger.info("dataManager.startReliableDLStream() on onTimerEvent");
 				startReliableDLStream();
 			}
 			catch(e:Error) {
