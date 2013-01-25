@@ -49,6 +49,7 @@ package com.ttProject.tak.data
 			// 親のstream(データの再生用のstream)を保持しておく。
 			this.stream = stream;
 			this.addEventListener(TimerEvent.TIMER, onTimerEvent);
+			super.start();
 		}
 		/**
 		 * 動作を開始する
@@ -85,8 +86,8 @@ package com.ttProject.tak.data
 				Logger.error("error:" + e.message);
 			}
 
-			// シグナル用のタイマーをスタートさせておく。
-			super.start();
+			// シグナル用のタイマーをスタートさせておく。(ここでやっているとタイマーが多重起動する。)
+//			super.start();
 		}
 		/**
 		 * データ元となるurlを追加
@@ -154,6 +155,7 @@ package com.ttProject.tak.data
 			else {
 				// インデックスが設置済みの場合
 				if(flm.index == playedIndex + 1) { // 今回得たデータが欲しかったデータ
+					Logger.info("取得したindex:" + flm.index);
 					stream.appendDataBytes(flm.getData());
 					// 次のデータがあるか確認して存在できているなら、次のデータも流す。
 					playedIndex ++;
@@ -169,7 +171,24 @@ package com.ttProject.tak.data
 						}
 					}
 				}
-				else if(stream.bufferLength < 0.5) {
+				else {
+					if(stream.bufferLength < 0.5) {
+						// のこり時間がなくなってきたので補完するように手配します。
+						Logger.info("データがたりなくなったので、やりなおします。");
+						stream.setup();
+						stream.appendHeaderBytes(flh.getData());
+						var httpStream:HttpStream = source.getSource("http") as HttpStream;
+						if(httpStream == null) {
+							// 補完可能なストリームが存在しない。
+							return;
+						}
+						// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
+						Logger.info("httpStreamを復活させる。" + playedIndex);
+						// 念のため最終indexから落とし直すようにしておく。
+						httpStream.start(playedIndex);
+					}
+				}
+/*				else if(stream.bufferLength < 0.5) {
 					// 今回得たデータがほしかったものでなかったとしても、必要なデータがない場合(どこかでつまっていた場合あきらめてやり直す必要がある。)
 					Logger.info("データがたりなくなったので、もっているデータからやりなおします。");
 					if(flh != null) {
@@ -189,16 +208,12 @@ package com.ttProject.tak.data
 								break;
 							}
 						}
-						if(!isAppended) {
-							// 追記できなかった場合は始めからやり直す。
-							start();
-						}
 					}
 					else {
 						// はじめからやり直し(まぁありえないけど)
 						start();
 					}
-				}
+				}*/
 			}
 		}
 		/**
@@ -239,6 +254,13 @@ package com.ttProject.tak.data
 			}
 		}
 		/**
+		 * 対象のflmが取得済みであるか確認する。
+		 */
+		public function checkHasData(index:int):Boolean {
+			return flmList.get(index) != null;
+		}
+		private var lastRestartTime:Number = -1;
+		/**
 		 * タイマー処理
 		 */
 		private function onTimerEvent(event:TimerEvent):void {
@@ -258,17 +280,24 @@ package com.ttProject.tak.data
 					// 開始前もしくはデータがまだのこっている場合は、追記読み込み補助は実施しない
 					return;
 				}
+				var currentTime:Number = new Date().time;
+				if(currentTime < lastRestartTime + 1000) {
+					Logger.info("リスタートしてから1秒しかたっていないので、もう少し様子をみます。");
+					return;
+				}
+				lastRestartTime = currentTime;
 				// データの補完を手配してみる。
 				var httpStream:HttpStream = source.getSource("http") as HttpStream;
 				if(httpStream == null) {
 					// 補完可能なストリームが存在しない。
-//					start();
 					return;
 				}
-				// データを補完依頼してみる。
-//				httpStream.spot(playedIndex + 1);
-				Logger.info("httpStreamを復活させる。");
-				httpStream.start(playedIndex + 1);
+				// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
+				Logger.info("httpStreamを復活させる。" + playedIndex);
+				// 念のため最終indexから落とし直すようにしておく。
+				httpStream.start(playedIndex);
+				// DL時に+1するので、やっぱここではいれない方がいいっぽいけど
+//				playedIndex ++; // 仮にうまくいかなかった場合に再動作する必要があるのだが、その際には
 			}
 			catch(e:Error) {
 				Logger.error("onTimerEvent(DataManager):" + e.message);
