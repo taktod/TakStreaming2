@@ -100,7 +100,7 @@ package com.ttProject.tak.source
 				downloadBinary(flhFile, function(data:ByteArray):void {
 					// flhデータを取得しました。
 					// flhデータを取得することができたので、次の段階にすすむ。
-					Logger.info("startIndex:" + startIndex);
+//					Logger.info("startIndex:" + startIndex);
 					if(startIndex == -1) {
 						// startIndexが-1でなければ、flhはとりあえず見送ってみる
 						dataManager.setFlhData(data);
@@ -121,7 +121,7 @@ package com.ttProject.tak.source
 			}
 			// 最終DLからある程度経ってから次のどうさにもっていきます。
 			// 数値をあげるとDLすべき回数はへるけど、リアルタイム性が犠牲になります。
-			if(lastDlTime + 1000 > new Date().time) {
+			if(lastDlTime + 500 > new Date().time) {
 				return;
 			}
 			lastDlTime = new Date().time;
@@ -147,18 +147,20 @@ package com.ttProject.tak.source
 					return;
 				}
 				else {
-					if(isLoadMedia) {
+/*					if(isLoadMedia) {
 						// イベントがきたらダウンロードを実施する。
 						// flfデータをダウンロードする。
 						downloadText(flfFile, function(data:String):void {
 							analizeFlfFile(data);
-							loadSegment();
+							loadSegment();/
 						});
 					}
 					else {
 						// 次のタイマーイベントで処理させる。
 						inTask = false;
-					}
+					}*/
+					// 次のタスクで次のデータを読み込めばよいはず
+					inTask = false;
 				}
 			}
 			else {
@@ -166,15 +168,15 @@ package com.ttProject.tak.source
 				// 普通にDLできる場合はDLする
 //				lastDlTime = new Date().time;
 				if(flmObject.resetFlg) {
-					Logger.info("リセットがついてた");
+//					Logger.info("リセットがついてた");
 					// headerからDLやり直す必要あり。
 					downloadBinary(flhFile, function(data:ByteArray):void {
 						// flhデータを取得することができたので、次の段階にすすむ。
-						Logger.info("resetするよ");
+//						Logger.info("resetするよ");
 						dataManager.setFlhData(data);
 						if(dataManager.checkHasData(flmObject.index)) {
 							// すでに対象のデータは保持済み(メインストリームでも発生する可能性があるっぽい。)
-							Logger.info("保持済みのデータのDLを実行しようとした");
+//							Logger.info("保持済みのデータのDLを実行しようとした");
 							passedIndex = flmList.getAbsPos(flmObject.index) + 1;
 							loadSegment();
 							return;
@@ -189,7 +191,7 @@ package com.ttProject.tak.source
 				else {
 					if(dataManager.checkHasData(flmObject.index)) {
 						// すでに対象のデータは保持済み(メインストリームでも発生する可能性があるっぽい。)
-						Logger.info("保持済みのデータのDLを実行しようとした");
+//						Logger.info("保持済みのデータのDLを実行しようとした");
 						passedIndex = flmList.getAbsPos(flmObject.index) + 1;
 						loadSegment();
 						return;
