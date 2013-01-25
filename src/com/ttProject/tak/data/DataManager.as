@@ -190,14 +190,7 @@ package com.ttProject.tak.data
 						stream.appendHeaderBytes(flh.getData());
 						
 						// とりあえずhttpStreamで補完を試みる
-						var httpStream:HttpStream = source.getSource("http") as HttpStream;
-						if(httpStream == null) {
-							// 補完可能なストリームが存在しない。
-							return;
-						}
-						stream.source = "http";
-						httpStream.start(playedIndex); // 念のため最終indexを再度ダウンロードする方向にしておく。
-						source.disconnectP2pSourceStream(); // p2p接続は遅延が発生しているため。あきらめる。
+						startReliableDLStream();
 					}
 				}
 			}
@@ -210,34 +203,30 @@ package com.ttProject.tak.data
 			flh = new FlhData(data);
 			// rtmfpの提供先に通知
 			supply.flh(flh);
-			// 初期化
-			flmList = new FlmDataHolder();
-			playedIndex = -1;
-			stream.setup();
-			stream.appendHeaderBytes(flh.getData()); // header追記
+			streamSetup();
 		}
 		/**
 		 * 接続時の始めのflhデータを受け入れる動作(rtmfpのみ)
 		 */
 		public function setInitFlhData(data:ByteArray):void {
-			// いままでつかっていたストリームは破棄する。
-			var httpStream:ISourceStream = source.getSource("http");
-			if(httpStream != null) {
-				httpStream.stop();
-			}
-			// p2pで動作することを宣言する。
-			stream.source = "p2p";
+			startP2pDLStream();
 			// flhデータが存在していない場合のみ、初期化しておく。
 			if(flh == null || stream.bufferLength < 0.5) {
 				Logger.info("再セットアップします。");
 				// 解析
 				flh = new FlhData(data);
-				// 初期化
-				flmList = new FlmDataHolder();
-				playedIndex = -1;
-				stream.setup();
-				stream.appendHeaderBytes(flh.getData());
+				streamSetup();
 			}
+		}
+		/**
+		 * BaseStreamの初期化補助
+		 */
+		private function streamSetup():void {
+			// 初期化
+			flmList = new FlmDataHolder();
+			playedIndex = -1;
+			stream.setup();
+			stream.appendHeaderBytes(flh.getData());
 		}
 		/**
 		 * タイマー処理
@@ -267,21 +256,35 @@ package com.ttProject.tak.data
 				lastRestartTime = currentTime;
 
 				// データの補完を手配してみる。
-				var httpStream:HttpStream = source.getSource("http") as HttpStream;
-				if(httpStream == null) {
-					// 補完可能なストリームが存在しない。
-					return;
-				}
-				stream.source = "http";
-				// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
-				Logger.info("httpStreamを復活させる。" + playedIndex);
-				source.disconnectP2pSourceStream();
-				// 念のため最終indexから落とし直すようにしておく。
-				httpStream.start(playedIndex);
+				startReliableDLStream();
 			}
 			catch(e:Error) {
 				Logger.error("onTimerEvent(DataManager):" + e.message);
 			}
+		}
+		/**
+		 * 信頼できるダウンロードstreamを開始します。
+		 */
+		private function startReliableDLStream():void {
+			var httpStream:HttpStream = source.getSource("http") as HttpStream;
+			if(httpStream == null) {
+				return;
+			}
+			stream.source = "http";
+			httpStream.start(playedIndex);
+			source.disconnectP2pSourceStream();
+		}
+		/**
+		 * p2pのダウンロードstreamを開始します。
+		 */
+		private function startP2pDLStream():void {
+			// いままでつかっていたストリームは破棄する。
+			var httpStream:ISourceStream = source.getSource("http");
+			if(httpStream != null) {
+				httpStream.stop();
+			}
+			// p2pで動作することを宣言する。
+			stream.source = "p2p";
 		}
 	}
 }
@@ -302,10 +305,6 @@ import flash.utils.ByteArray;
  */
 class FlmDataHolder {
 	private var _data:Object; // データ保持
-//	private var _min:int;
-/*	public function get min():int {
-		return _min;
-	}*/
 	/**
 	 * コンストラクタ
 	 */
@@ -338,15 +337,7 @@ class FlmDataHolder {
 		// 保持データが10以上の場合は、古いデータを破棄します。
 		if(count > 10) {
 			delete _data[min];
-/*			min = -1;
-			for(key in _data) {
-				count ++;
-				if(min == -1 || min > key) {
-					min = key;
-				}
-			}*/
 		}
-//		_min = min;
 	}
 }
 
