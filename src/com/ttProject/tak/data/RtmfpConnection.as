@@ -111,6 +111,7 @@ package com.ttProject.tak.data
 		 * ネット関連のイベント処理
 		 */
 		private function onNetStatusEvent(event:NetStatusEvent):void {
+			Logger.info(event.info.code);
 			switch(event.info.code) {
 				case "NetConnection.Connect.Success":
 					// 接続成功したら、groupをつくっておく。
@@ -121,6 +122,7 @@ package com.ttProject.tak.data
 				case "NetConnection.Connect.NetworkChanged":
 					// 切断した場合は、あたらしい接続をつくりなおす必要がある。(ただしタイマーでやることにする。)
 //					resumeConnection();
+					Logger.info("ここだろ？");
 					break;
 				case "NetGroup.Connect.Success":
 					// netgroupにつながったら必要な相手をみつける作業にはいる。
