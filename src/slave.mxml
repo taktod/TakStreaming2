@@ -51,7 +51,6 @@
 			 */
 			protected function play():void {
 				// 視聴開始処理(自動スタートにしてある。)
-				logger.info("test");
 				try {
 					netStream.play(null);
 				}
