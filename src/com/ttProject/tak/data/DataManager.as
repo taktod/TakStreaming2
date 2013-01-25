@@ -76,6 +76,7 @@ package com.ttProject.tak.data
 			else {
 				stream.start(-1);
 				stream.target = true; // メインダウンロードに指定しておく。
+				this.stream.source = "http";
 			}
 			// p2pの接続の構築手配しておく。
 			try {
@@ -155,7 +156,7 @@ package com.ttProject.tak.data
 			else {
 				// インデックスが設置済みの場合
 				if(flm.index == playedIndex + 1) { // 今回得たデータが欲しかったデータ
-					Logger.info("取得したindex:" + flm.index);
+//					Logger.info("取得したindex:" + flm.index);
 					stream.appendDataBytes(flm.getData());
 					// 次のデータがあるか確認して存在できているなら、次のデータも流す。
 					playedIndex ++;
@@ -184,8 +185,10 @@ package com.ttProject.tak.data
 						}
 						// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
 						Logger.info("httpStreamを復活させる。" + playedIndex);
+						stream.source = "http";
 						// 念のため最終indexから落とし直すようにしておく。
 						httpStream.start(playedIndex);
+						source.disconnectP2pSourceStream();
 					}
 				}
 /*				else if(stream.bufferLength < 0.5) {
@@ -240,6 +243,7 @@ package com.ttProject.tak.data
 			if(httpStream != null) {
 				httpStream.stop();
 			}
+			stream.source = "p2p";
 			// flhデータが存在していない場合のみ、初期化しておく。
 			if(flh == null || stream.bufferLength < 0.5) {
 				Logger.info("再セットアップします。");
@@ -282,7 +286,7 @@ package com.ttProject.tak.data
 				}
 				var currentTime:Number = new Date().time;
 				if(currentTime < lastRestartTime + 1000) {
-					Logger.info("リスタートしてから1秒しかたっていないので、もう少し様子をみます。");
+//					Logger.info("リスタートしてから1秒しかたっていないので、もう少し様子をみます。");
 					return;
 				}
 				lastRestartTime = currentTime;
@@ -292,8 +296,10 @@ package com.ttProject.tak.data
 					// 補完可能なストリームが存在しない。
 					return;
 				}
+				stream.source = "http";
 				// 一度復活させた場合はしばらく再復活しないようにしたほうがよい
 				Logger.info("httpStreamを復活させる。" + playedIndex);
+				source.disconnectP2pSourceStream();
 				// 念のため最終indexから落とし直すようにしておく。
 				httpStream.start(playedIndex);
 				// DL時に+1するので、やっぱここではいれない方がいいっぽいけど
