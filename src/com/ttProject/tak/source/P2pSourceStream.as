@@ -109,7 +109,7 @@ package com.ttProject.tak.source
 		 */
 		private function close():void {
 			if(recvStream != null) {
-				Logger.info("親接続と切れました:" + nodeId);
+//				Logger.info("親接続と切れました:" + nodeId);
 				recvStream.close();
 				recvStream = null;
 			}

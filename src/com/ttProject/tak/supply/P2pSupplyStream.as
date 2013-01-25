@@ -60,7 +60,7 @@ package com.ttProject.tak.supply
 				lastAccess = (new Date()).time;
 				if(nodeId == null) {
 					if(subscriber.farID == rtmfp.masterNodeId) {
-						Logger.info("ご先祖さまからの接続なので、拒否");
+//						Logger.info("ご先祖さまからの接続なので、拒否");
 						stop();
 						return false;
 					}
@@ -101,7 +101,7 @@ package com.ttProject.tak.supply
 		 */
 		private function close():void {
 			if(sendStream != null) {
-				Logger.info("子接続と切れました。:" + nodeId);
+//				Logger.info("子接続と切れました。:" + nodeId);
 				sendStream.close();
 				sendStream = null;
 			}
