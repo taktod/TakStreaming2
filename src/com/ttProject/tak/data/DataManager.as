@@ -37,6 +37,9 @@ package com.ttProject.tak.data
 		public function get hasP2pSource():Boolean {
 			return source.hasP2p;
 		}
+		public function get hasSource():Boolean {
+			return source.hasAny;
+		}
 		/**
 		 * 対象のflmが取得済みであるか確認する。
 		 */
@@ -445,6 +448,12 @@ class SourceHolder {
 			if(_source[key] is P2pSourceStream) {
 				return true;
 			}
+		}
+		return false;
+	}
+	public function get hasAny():Boolean {
+		for(var key:* in _source) {
+			return true;
 		}
 		return false;
 	}

@@ -256,7 +256,7 @@ package com.ttProject.tak.data
 			clearQueue();
 			// TODO sourceデータが１つも存在しない場合でも、supplyを実行しようとしてしまうところがよろしくない。
 			// アクセス数がひくくて、枠の空きがあるか確認
-			if(dataManager.supplyCount < 2 && (supplyStream1 == null || supplyStream2 == null)) {
+			if(dataManager.hasSource && dataManager.supplyCount < 2 && (supplyStream1 == null || supplyStream2 == null)) {
 				ng.addHaveObjects(1, 1);
 			}
 		}
@@ -296,7 +296,12 @@ package com.ttProject.tak.data
 			// 接続可能モードでも、必要があれば、接続をうけつけなくしたりコントロールしないとだめ。
 			if(supply && source) { // 提供も受け入れもする場合
 				// p2pのソースを取得済みの場合はもしくは、前回データソース募集した場合
-				if(dataManager.hasP2pSource || mode == 1) {
+				if(!dataManager.hasSource) {
+					// ソースがない場合は強制的にsourceがほしい
+					mode = 1;
+					sourceQueue();
+				}
+				else if(dataManager.hasP2pSource || mode == 1) {
 					// データ提供先募集
 					mode = 2;
 					supplyQueue();
