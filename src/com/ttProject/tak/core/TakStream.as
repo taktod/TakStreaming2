@@ -12,6 +12,7 @@ package com.ttProject.tak.core
 	 */
 	public class TakStream extends BaseStream {
 		private var dataManager:DataManager; // データ完了
+		public var source:String;
 		/**
 		 * コンストラクタ
 		 */
