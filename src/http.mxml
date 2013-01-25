@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="640" height="511"
+			   initialize="init();">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.ttProject.info.ConsoleLogger;
+			import com.ttProject.info.Data;
+			import com.ttProject.info.Logger;
+			import com.ttProject.tak.TakStreamingFactory;
+			private var netStream:NetStream = null;
+			private var video:Video = null;
+			private var volume:Number = 0;
+			private var logger:*;
+			/**
+			 * 初期化
+			 */
+			protected function init():void {
+				// ロガーのセットアップ
+				logger = new ConsoleLogger();
+				logger.info("new p2pVersion");
+				TakStreamingFactory.setLogger(logger); // 内部の動作ログを拾うために、ロガーを登録しておく。
+				// DataGridのセットアップ(タイマーでnetStreamの状態を報告しておく)
+				Data.setup(data);
+				Data.update(null);
+				var timer:Timer = new Timer(100);
+				timer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void {
+					Data.update(netStream);
+				});
+				timer.start();
+				// メディアソースを設定
+				TakStreamingFactory.addSource("http://49.212.39.17/tak/test.flf", "test");
+				// データを設定しておく。
+				netStream = TakStreamingFactory.getStream();
+				video = TakStreamingFactory.getVideo();
+				uiComp.addChild(video);
+				netStream.soundTransform = new SoundTransform(volume);
+
+				netStream.bufferTime = 2;
+			}
+			/**
+			 * 視聴開始
+			 */
+			protected function play():void {
+				try {
+					netStream.play(null);
+				}
+				catch(e:Error) {
+					logger.error("error:" + e.message);
+				}
+			}
+			/**
+			 * ボリュームコントロール
+			 */
+			protected function slider(val:String):void {
+				volume = Number(val) / 10;
+				if(netStream != null) {
+					netStream.soundTransform = new SoundTransform(volume);
+				}
+			}
+		]]>
+	</fx:Script>
+	<mx:Canvas x="10" y="10">
+		<mx:UIComponent id="uiComp" />
+	</mx:Canvas>
+	<mx:DataGrid x="368" y="10" width="262" height="353" id="data">
+		<mx:columns>
+			<mx:DataGridColumn headerText="name" dataField="name" resizable="false" width="80"/>
+			<mx:DataGridColumn headerText="value" dataField="value"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<s:VSlider x="354" y="263" dataTipFormatFunction="slider"/>
+	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="logArea"/>
+	<s:TextInput  x="159" y="398" width="282" id="original" text="http://49.212.39.17/tak/test.flf" enabled="false"/>
+	<s:TextInput  x="444" y="398" width="114" id="stream" text="test" enabled="false"/>
+	<s:Button  x="561" y="399" label="add" enabled="false"/>
+	<s:TextInput  x="159" y="428" width="282" id="original0" text="http://49.212.39.17/tak/test.flf" enabled="false"/>
+	<s:TextInput  x="444" y="428" width="114" id="stream0" text="test" enabled="false"/>
+	<s:Button  x="561" y="429" label="add" enabled="false"/>
+	<s:Label x="68" y="404" text="sourceTarget" enabled="false"/>
+	<s:Label x="68" y="432" text="supplyTarget" enabled="false"/>
+	<s:Button x="17" y="370" label="play" click="play()"/>
+	<s:Label x="159" y="379" text="url" enabled="false"/>
+	<s:Label x="444" y="379" text="name" enabled="false"/>
+</s:Application>
