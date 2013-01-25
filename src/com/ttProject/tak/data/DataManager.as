@@ -276,11 +276,16 @@ package com.ttProject.tak.data
 			// とりあえずp2pは止めます。
 			source.disconnectP2pSourceStream();
 			var httpStream:HttpStream = source.getSource("http") as HttpStream;
-			if(httpStream == null) {
+			if(httpStream != null) {
+				stream.source = "http";
+				httpStream.start(playedIndex);
 				return;
 			}
-			stream.source = "http";
-			httpStream.start(playedIndex);
+			else {
+				// p2pしかない場合は、ここであきらめてしまうと、DLがとまりやすくなってしまうので、本当は、ぎりぎりまで我慢する形にした方がいい。
+				// なにもない場合はやり直しになります。
+				start();
+			}
 		}
 		/**
 		 * p2pのダウンロードstreamを開始します。
