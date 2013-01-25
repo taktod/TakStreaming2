@@ -254,6 +254,7 @@ package com.ttProject.tak.data
 		 */
 		private function supplyQueue():void {
 			clearQueue();
+			// TODO sourceデータが１つも存在しない場合でも、supplyを実行しようとしてしまうところがよろしくない。
 			// アクセス数がひくくて、枠の空きがあるか確認
 			if(dataManager.supplyCount < 2 && (supplyStream1 == null || supplyStream2 == null)) {
 				ng.addHaveObjects(1, 1);
