@@ -121,7 +121,7 @@ package com.ttProject.tak.source
 			}
 			// 最終DLからある程度経ってから次のどうさにもっていきます。
 			// 数値をあげるとDLすべき回数はへるけど、リアルタイム性が犠牲になります。
-			if(lastDlTime + 500 > new Date().time) {
+			if(lastDlTime + 300 > new Date().time) {
 				return;
 			}
 			lastDlTime = new Date().time;
