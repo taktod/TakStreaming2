@@ -1,5 +1,6 @@
 package com.ttProject.tak.data
 {
+	import com.ttProject.event.Profile;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.source.P2pSourceStream;
 	import com.ttProject.tak.supply.P2pSupplyStream;

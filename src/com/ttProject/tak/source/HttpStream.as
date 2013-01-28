@@ -1,5 +1,6 @@
 package com.ttProject.tak.source
 {
+	import com.ttProject.event.Profile;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	
@@ -121,7 +122,7 @@ package com.ttProject.tak.source
 			}
 			// 最終DLからある程度経ってから次のどうさにもっていきます。
 			// 数値をあげるとDLすべき回数はへるけど、リアルタイム性が犠牲になります。
-			if(lastDlTime + 300 > new Date().time) {
+			if(lastDlTime + 500 > new Date().time) {
 				return;
 			}
 			lastDlTime = new Date().time;
@@ -288,10 +289,12 @@ package com.ttProject.tak.source
 		private function downloadText(target:String, task:Function):void {
 			var loader:URLLoader = new URLLoader;
 			loader.dataFormat = URLLoaderDataFormat.TEXT;
+			var id:int = Profile.add("dlText", new Date().time, target);
 			loader.addEventListener(Event.COMPLETE, function(event:Event):void {
+				Profile.update(id, null, (new Date().time - Profile.getValue(id)), null);
 				task(loader.data as String);
 			});
-			download(loader, target);
+			download(loader, target, id);
 		}
 		/**
 		 * バイナリデータをダウンロードする。
@@ -299,21 +302,25 @@ package com.ttProject.tak.source
 		private function downloadBinary(target:String, task:Function):void {
 			var loader:URLLoader = new URLLoader;
 			loader.dataFormat = URLLoaderDataFormat.BINARY;
+			var id:int = Profile.add("dlBinary", new Date().time, target);
 			loader.addEventListener(Event.COMPLETE, function(event:Event):void {
+				Profile.update(id, null, (new Date().time - Profile.getValue(id)), null);
 				task(loader.data as ByteArray);
 			});
-			download(loader, target);
+			download(loader, target, id);
 		}
 		/**
 		 * ダウンロードの共通処理
 		 */
-		private function download(loader:URLLoader, target:String):void {
+		private function download(loader:URLLoader, target:String, id:int):void {
 			loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, function(event:SecurityErrorEvent):void {
 				Logger.info("securityエラー発生");
+				Profile.update(id, "dlSecurityFailed", (new Date().time - Profile.getValue(id), null));
 				inTask = false;
 			});
 			loader.addEventListener(IOErrorEvent.IO_ERROR, function(event:IOErrorEvent):void {
 				Logger.info("IO_ERRORエラー発生");
+				Profile.update(id, "dlIOFailed", (new Date().time - Profile.getValue(id), null));
 				inTask = false;
 			});
 			try {

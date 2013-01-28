@@ -1,11 +1,14 @@
 package com.ttProject.tak.supply
 {
+	import com.ttProject.event.Profile;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	import com.ttProject.tak.data.RtmfpConnection;
 	
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
+	import flash.profiler.profile;
+	import flash.sampler.NewObjectSample;
 	import flash.utils.ByteArray;
 
 	/**
@@ -25,6 +28,7 @@ package com.ttProject.tak.supply
 		private var rtmfp:RtmfpConnection;
 		private var counter:int = 0;
 
+		private var startTime:uint;
 		public function get isSendHeader():Boolean {
 			return sendHeader;
 		}
@@ -65,7 +69,9 @@ package com.ttProject.tak.supply
 						return false;
 					}
 					nodeId = subscriber.farID;
+					Profile.add("supplyStart", 0, nodeId);
 					Logger.info("supply接続しました。:" + nodeId);
+					startTime = lastAccess;
 					sendHeader = false;
 				}
 				return true; // とりあえず許可しておく
@@ -101,6 +107,7 @@ package com.ttProject.tak.supply
 		 */
 		private function close():void {
 			if(sendStream != null) {
+				Profile.add("supplyEnd", (new Date().time - startTime), nodeId);
 //				Logger.info("子接続と切れました。:" + nodeId);
 				sendStream.close();
 				sendStream = null;

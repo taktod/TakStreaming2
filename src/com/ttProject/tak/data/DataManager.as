@@ -1,5 +1,6 @@
 package com.ttProject.tak.data
 {
+	import com.ttProject.event.Profile;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.core.TakStream;
 	import com.ttProject.tak.source.HttpStream;
@@ -91,7 +92,6 @@ package com.ttProject.tak.data
 			if(stream != null) {
 				// httpTakStreamを開始する。
 				stream.start(-1);
-//				stream.target = true;
 				this.stream.source = "http";
 			}
 			// p2pの接続の構築手配しておく。
@@ -153,7 +153,7 @@ package com.ttProject.tak.data
 			// DL済みコンテンツ確認
 			var oldFlm:FlmData = flmList.get(flm.index);
 			if(oldFlm != null) {
-//				Logger.info("すでにもっているデータがやってきた。");
+				Profile.add("flm", 0, "reget dled data.");
 				return;
 			}
 			// あたらしいデータなのでflmListに登録しておく。
@@ -189,6 +189,7 @@ package com.ttProject.tak.data
 				else {
 					// 連番でもなんでもないが、データが足りなくなっている場合(この処理なくてもtimerで補完されそうだが・・・)
 					if(stream.bufferLength < 0.5) {
+						Profile.add("flm", 0, "startReliableDLStream by setFlmData");
 						Logger.info("dataManager.startReliableDLStream() on setFlmData");
 						// のこり時間がなくなってきたので補完するように手配します。
 						stream.setup();
@@ -251,7 +252,7 @@ package com.ttProject.tak.data
 				// 遅延の確認をして、状態が酷い場合はほぼ確実にデータがとれるストリームで補完してやる
 				var length:Number = stream.bufferLength;
 				// 開始前の確認(開始前に補完が走ると暴走する)
-				if(length == -1 || length > 0.5 || stream.currentFPS == 0) {
+				if(length == -1 || length > 0.7 || stream.currentFPS == 0) {
 					return;
 				}
 				// 補完動作が多重ではしらないように、補完後１秒は補完を再開しないことにしておく。
@@ -262,6 +263,7 @@ package com.ttProject.tak.data
 				lastRestartTime = currentTime;
 
 				// データの補完を手配してみる。
+				Profile.add("flm", 0, "startReliableDLStream by onTimerEvent");
 				Logger.info("dataManager.startReliableDLStream() on onTimerEvent");
 				startReliableDLStream();
 			}

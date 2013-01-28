@@ -1,5 +1,6 @@
 package com.ttProject.tak.source
 {
+	import com.ttProject.event.Profile;
 	import com.ttProject.tak.Logger;
 	import com.ttProject.tak.data.DataManager;
 	import com.ttProject.tak.data.RtmfpConnection;
@@ -27,6 +28,8 @@ package com.ttProject.tak.source
 		private var counter:int = 0;
 
 		private var _target:Boolean;
+		
+		private var startTime:uint;
 		public function get isTarget():Boolean {
 			return _target;
 		}
@@ -79,6 +82,8 @@ package com.ttProject.tak.source
 		public function start(...paramter):void {
 			recvStream.play(name);
 			lastAccess = (new Date()).time;
+			Profile.add("sourceStart", 0, nodeId);
+			startTime = lastAccess;
 		}
 		/**
 		 * タイマー動作
@@ -109,7 +114,7 @@ package com.ttProject.tak.source
 		 */
 		private function close():void {
 			if(recvStream != null) {
-//				Logger.info("親接続と切れました:" + nodeId);
+				Profile.add("sourceEnd", (new Date().time - startTime), nodeId);
 				recvStream.close();
 				recvStream = null;
 			}
@@ -119,9 +124,11 @@ package com.ttProject.tak.source
 			}
 		}
 		private function takData(data:ByteArray):void {
+			Profile.add("flm", 0, "getFlmByRtmfp");
 			dataManager.setFlmData(data);
 		}
 		private function takHeader(data:ByteArray):void {
+			Profile.add("flm", 0, "getFlhByRtmfp");
 			dataManager.setFlhData(data);
 		}
 		/**

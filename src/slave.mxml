@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
 			   xmlns:s="library://ns.adobe.com/flex/spark" 
-			   xmlns:mx="library://ns.adobe.com/flex/mx" width="640" height="511"
+			   xmlns:mx="library://ns.adobe.com/flex/mx" width="640" height="459"
 			   initialize="init();">
 	<fx:Declarations>
 		<!-- Place non-visual elements (e.g., services, value objects) here -->
 	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
+			import com.ttProject.event.Profile;
 			import com.ttProject.info.ConsoleLogger;
 			import com.ttProject.info.Data;
 			import com.ttProject.info.Logger;
 			import com.ttProject.tak.TakStreamingFactory;
+			
 			private var netStream:NetStream = null;
 			private var video:Video = null;
 			private var volume:Number = 0;
@@ -33,11 +35,11 @@
 				});
 				timer.start();
 				// メディアソースを設定(http)
-				TakStreamingFactory.addSource("http://49.212.39.17/tak/test.flf", "test");
+				TakStreamingFactory.addSource("http://49.212.39.17/tak/takTest.flf", "takTest");
 				// メディアソースを設定(p2p)
-				TakStreamingFactory.addSource("rtmfp:", "test");
+				TakStreamingFactory.addSource("rtmfp:", "takTest");
 				// データ提供先も設定(p2p)
-				TakStreamingFactory.addSupply("rtmfp:", "test");
+				TakStreamingFactory.addSupply("rtmfp:", "takTest");
 				// データ設定しておく
 				netStream = TakStreamingFactory.getStream();
 				video = TakStreamingFactory.getVideo();
@@ -66,6 +68,9 @@
 					netStream.soundTransform = new SoundTransform(volume);
 				}
 			}
+			protected function dump():void {
+				Profile.copyToClipBoard();
+			}
 		]]>
 	</fx:Script>
 	<mx:Canvas x="10" y="10">
@@ -79,15 +84,16 @@
 	</mx:DataGrid>
 	<s:VSlider x="354" y="263" dataTipFormatFunction="slider"/>
 	<s:TextArea x="10" y="10" width="340" height="353" editable="false" enabled="true" visible="false" contentBackgroundAlpha="0.25" id="logArea"/>
-	<s:TextInput  x="159" y="398" width="282" id="original" text="http://49.212.39.17/tak/test.flf" enabled="false"/>
+	<s:TextInput  x="159" y="398" width="282" id="original" text="http://49.212.39.17/tak/takTest.flf" enabled="false"/>
 	<s:TextInput  x="444" y="398" width="114" id="stream" text="test" enabled="false"/>
 	<s:Button  x="561" y="399" label="add" enabled="false"/>
-	<s:TextInput  x="159" y="428" width="282" id="original0" text="http://49.212.39.17/tak/test.flf" enabled="false"/>
+	<s:TextInput  x="159" y="428" width="282" id="original0" text="http://49.212.39.17/tak/takTest.flf" enabled="false"/>
 	<s:TextInput  x="444" y="428" width="114" id="stream0" text="test" enabled="false"/>
 	<s:Button  x="561" y="429" label="add" enabled="false"/>
 	<s:Label x="68" y="404" text="sourceTarget"/>
 	<s:Label x="68" y="432" text="supplyTarget"/>
-	<s:Button x="17" y="370" label="play" click="play()"/>
+	<s:Button x="6" y="375" label="play" click="play()" width="64"/>
+	<s:Button x="74" y="375" label="dump" click="dump()" width="64"/>
 	<s:Label x="159" y="379" text="url"/>
 	<s:Label x="444" y="379" text="name" enabled="false"/>
 </s:Application>
