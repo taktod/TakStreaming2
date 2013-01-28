@@ -252,7 +252,7 @@ package com.ttProject.tak.data
 				// 遅延の確認をして、状態が酷い場合はほぼ確実にデータがとれるストリームで補完してやる
 				var length:Number = stream.bufferLength;
 				// 開始前の確認(開始前に補完が走ると暴走する)
-				if(length == -1 || length > 0.7 || stream.currentFPS == 0) {
+				if(length == -1 || length > 0.5 || stream.currentFPS == 0) {
 					return;
 				}
 				// 補完動作が多重ではしらないように、補完後１秒は補完を再開しないことにしておく。

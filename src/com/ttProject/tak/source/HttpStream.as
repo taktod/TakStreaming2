@@ -141,16 +141,6 @@ package com.ttProject.tak.source
 			// 次のデータをDLしようとする。
 			var flmObject:FlmObject = flmList.getAbs(passedIndex);
 			if(flmObject == null) {
-/*				if(flmList.checkNeedRestart(passedIndex)) {
-					// やりなおす必要がある場合はそうする。
-					Logger.info("やりなおす必要がでてきました。");
-					flmList.checkInfo(passedIndex);
-					return;
-				}
-				else {
-					// タスクを解放しておいて、あとでやりなおす
-					inTask = false;
-				}*/
 				inTask = false;
 			}
 			else {
