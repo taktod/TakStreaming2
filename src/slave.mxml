@@ -35,11 +35,11 @@
 				});
 				timer.start();
 				// メディアソースを設定(http)
-				TakStreamingFactory.addSource("http://49.212.39.17/tak/takTest.flf", "takTest");
+				TakStreamingFactory.addSource("http://49.212.39.17/tak/test.flf", "test");
 				// メディアソースを設定(p2p)
-				TakStreamingFactory.addSource("rtmfp:", "takTest");
+				TakStreamingFactory.addSource("rtmfp:", "test");
 				// データ提供先も設定(p2p)
-				TakStreamingFactory.addSupply("rtmfp:", "takTest");
+				TakStreamingFactory.addSupply("rtmfp:", "test");
 				// データ設定しておく
 				netStream = TakStreamingFactory.getStream();
 				video = TakStreamingFactory.getVideo();
