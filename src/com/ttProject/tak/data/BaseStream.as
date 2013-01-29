@@ -216,7 +216,7 @@ package com.ttProject.tak.data
 							return ba;
 						case 9: // video
 							ba.position = 11;
-							if(ba.readByte() & 0x10 == 0x00) {
+							if((ba.readByte() & 0x10) == 0x00) {
 								return null;
 							}
 							break;
