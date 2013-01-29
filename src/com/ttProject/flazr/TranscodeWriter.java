@@ -79,8 +79,9 @@ public class TranscodeWriter implements RtmpWriter {
 								logger.info("アクセスが3秒強ないので、とまったと判定しました。");
 								stop();
 							}
-							if(lastWriteTime != -1 && System.currentTimeMillis() - lastWriteTime > 1500) {
+							if(lastWriteTime != -1 && System.currentTimeMillis() - lastWriteTime > 3000) {
 								// メディアの書き込みが1.5秒ないので、何らかの問題が発生したと判定し、止めます。
+								logger.info("メディアデータの書き込みが3秒ないので、なんらかの問題が発生したとし、止めます。");
 								stop();
 								// コンバート動作を考慮するなら、片側のメディアデータがながれてこなくなったら止めるべき。(ffmpegのコンバートがとまってしまうため。)
 							}
@@ -101,6 +102,7 @@ public class TranscodeWriter implements RtmpWriter {
 	 * unpublishを検知した場合
 	 */
 	public void onUnpublish() {
+		logger.info("unpublishを検知したよ？");
 		stop();
 	}
 	/**
@@ -279,6 +281,7 @@ public class TranscodeWriter implements RtmpWriter {
 			audioCodec = CodecType.getCodecType(tag);
 		}
 		if(audioCodec != CodecType.getCodecType(tag)) {
+			logger.info("コーデック情報がまえの状態と違うのを検知しましたよ。");
 			stop();
 		}
 		// シーケンスヘッダ確認
@@ -333,6 +336,7 @@ public class TranscodeWriter implements RtmpWriter {
 			videoCodec = CodecType.getCodecType(tag);
 		}
 		if(videoCodec != CodecType.getCodecType(tag)) {
+			logger.info("codec情報が前のデータと違うのを検知しました。");
 			stop();
 		}
 		// シーケンスヘッダ確認
